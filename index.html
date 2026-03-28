@@ -2567,47 +2567,14 @@
     </div>
     <div id="header-top">
       <div class="header-title" style="display:flex;align-items:center;gap:12px">
-        <svg id="hgl-logo" viewBox="0 0 200 200" width="72" height="72" style="flex-shrink:0">
-          <!-- Outer border -->
-          <ellipse cx="100" cy="100" rx="96" ry="96" fill="#fff" stroke="#334155" stroke-width="3"/>
-          <ellipse cx="100" cy="100" rx="88" ry="88" fill="#2c3e7a" stroke="#2c3e7a" stroke-width="1"/>
-          <!-- Top text arc: NEUROCIRUGÍA -->
-          <defs>
-            <path id="topArc" d="M 30,100 A 70,70 0 0,1 170,100" fill="none"/>
-            <path id="botArc" d="M 35,120 A 75,75 0 0,0 165,120" fill="none"/>
-          </defs>
-          <text fill="#fff" font-size="15" font-weight="700" font-family="Arial,sans-serif" letter-spacing="3">
-            <textPath href="#topArc" startOffset="50%" text-anchor="middle">NEUROCIRUGÍA</textPath>
-          </text>
-          <!-- Bottom text arc: HOSPITAL UNIVERSITARIO GENERAL LEON -->
-          <text fill="#fff" font-size="9.5" font-weight="600" font-family="Arial,sans-serif" letter-spacing="1.5">
-            <textPath href="#botArc" startOffset="50%" text-anchor="middle">HOSPITAL UNIVERSITARIO GENERAL LEÓN</textPath>
-          </text>
-          <!-- Brain + spine illustration (simplified) -->
-          <!-- Spine vertebrae -->
-          <rect x="94" y="88" width="12" height="7" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/>
-          <rect x="93" y="97" width="14" height="7" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/>
-          <rect x="92" y="106" width="16" height="7" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/>
-          <rect x="91" y="115" width="18" height="7" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/>
-          <rect x="90" y="124" width="20" height="7" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/>
-          <rect x="91" y="133" width="18" height="7" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/>
-          <rect x="92" y="142" width="16" height="7" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/>
-          <rect x="93" y="151" width="14" height="6" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/>
-          <!-- Head profile (left-facing) -->
-          <path d="M 100,86 C 78,86 58,68 60,48 C 62,28 80,18 100,18 C 120,18 138,32 138,55 C 138,72 128,80 118,84 L 116,86 Q 112,92 108,88 Z" fill="none" stroke="#fff" stroke-width="2"/>
-          <!-- Face features -->
-          <path d="M 62,55 L 55,58 L 62,62" fill="none" stroke="#fff" stroke-width="1.5"/>
-          <path d="M 60,68 Q 55,72 58,76" fill="none" stroke="#fff" stroke-width="1.5"/>
-          <!-- Brain lobes -->
-          <path d="M 100,24 C 115,24 130,32 132,50 C 132,60 126,72 118,78" fill="none" stroke="#fff" stroke-width="1.2" opacity=".7"/>
-          <path d="M 100,24 C 85,26 72,36 70,50" fill="none" stroke="#fff" stroke-width="1.2" opacity=".7"/>
-          <path d="M 76,44 Q 100,38 124,44" fill="none" stroke="#fff" stroke-width="1" opacity=".6"/>
-          <path d="M 72,58 Q 100,52 130,58" fill="none" stroke="#fff" stroke-width="1" opacity=".6"/>
-          <path d="M 78,70 Q 100,66 122,72" fill="none" stroke="#fff" stroke-width="1" opacity=".6"/>
-          <!-- Brain gyri details -->
-          <path d="M 108,30 C 112,40 108,50 112,60" fill="none" stroke="#fff" stroke-width="0.8" opacity=".5"/>
-          <path d="M 88,28 C 86,38 90,48 86,58" fill="none" stroke="#fff" stroke-width="0.8" opacity=".5"/>
-        </svg>
+        <img id="hgl-logo" src="" width="70" height="70" style="flex-shrink:0;border-radius:50%;background:#fff;cursor:pointer" onclick="document.getElementById('logo-upload-input').click()" title="Clic para cambiar logo"/>
+        <input type="file" id="logo-upload-input" accept="image/*" style="display:none" onchange="(function(inp){var f=inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(){var d=r.result;document.getElementById('hgl-logo').src=d;localStorage.setItem('hgl_logo',d)};r.readAsDataURL(f)})(this)"/>
+        <script>
+          (function(){var s=localStorage.getItem('hgl_logo');if(s){document.getElementById('hgl-logo').src=s}else{
+            // Default SVG logo fallback
+            var svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><ellipse cx="100" cy="100" rx="96" ry="96" fill="%23fff" stroke="%23334155" stroke-width="3"/><ellipse cx="100" cy="100" rx="88" ry="88" fill="%232c3e7a"/><text fill="%23fff" font-size="14" font-weight="700" font-family="Arial" text-anchor="middle" x="100" y="30">NEUROCIRUGÍA</text><text fill="%23fff" font-size="8" font-weight="600" font-family="Arial" text-anchor="middle" x="100" y="190">HOSPITAL GENERAL LEÓN</text><rect x="94" y="88" width="12" height="7" rx="2" fill="none" stroke="%23fff" stroke-width="1.5"/><rect x="93" y="97" width="14" height="7" rx="2" fill="none" stroke="%23fff" stroke-width="1.5"/><rect x="92" y="106" width="16" height="7" rx="2" fill="none" stroke="%23fff" stroke-width="1.5"/><rect x="91" y="115" width="18" height="7" rx="2" fill="none" stroke="%23fff" stroke-width="1.5"/><rect x="90" y="124" width="20" height="7" rx="2" fill="none" stroke="%23fff" stroke-width="1.5"/><path d="M 100,86 C 78,86 58,68 60,48 C 62,28 80,18 100,18 C 120,18 138,32 138,55 C 138,72 128,80 118,84 L 116,86 Q 112,92 108,88 Z" fill="none" stroke="%23fff" stroke-width="2"/><path d="M 62,55 L 55,58 L 62,62" fill="none" stroke="%23fff" stroke-width="1.5"/><path d="M 100,24 C 115,24 130,32 132,50 C 132,60 126,72 118,78" fill="none" stroke="%23fff" stroke-width="1.2" opacity=".7"/><path d="M 100,24 C 85,26 72,36 70,50" fill="none" stroke="%23fff" stroke-width="1.2" opacity=".7"/></svg>';
+            document.getElementById('hgl-logo').src='data:image/svg+xml,'+svg}})();
+        </script>
         <div>
           <div class="sub">Hospital General de León — Neurocirugía</div>
           <h1>📋 Piso Libro</h1>
@@ -2649,6 +2616,8 @@
       <button class="tab" onclick="setView('altas',this)">✅ Altas</button>
       <button class="tab" onclick="setView('pendientes',this)">📋 Pendientes</button>
       <button class="tab" onclick="setView('programacion',this)">🗓 Programación</button>
+      <button class="tab" onclick="setView('interconsultas',this)">🩺 Interconsultas</button>
+      <button class="tab" onclick="setView('itinerario',this)">📅 Itinerario</button>
     </div>
   </div>
   </div>
@@ -2684,6 +2653,8 @@
     <div id="view-altas" style="display:none"></div>
     <div id="view-pendientes" style="display:none"></div>
     <div id="view-programacion" style="display:none"></div>
+    <div id="view-interconsultas" style="display:none"></div>
+    <div id="view-itinerario" style="display:none"></div>
   </div>
 
   <!-- PATIENT MODAL -->
@@ -3457,7 +3428,8 @@
         ventilador: { modo: "", fio2: "", peep: "", vt: "", fr: "", pip: "", ps: "", driving_p: "", compliance: "", sato2: "" },
         cultivos: [],
         notas_evolucion: [],
-        tac_control: false,
+        neuro_exam: {},
+        tac_control: false, tac_control_requested: false,
         checklist: { ncx_ingreso: false, ncx_subrogado: false, ncx_adscrito_cargo: "",
           npo: false, npo_dias: "", atb: false, atb_nombre: "", atb_dias: "", atb_fecha_inicio: "", tvp: false, tvp_tipo: "", tvp_dosis: "", tvp_otro: "", dieta: "", dren: false, cur_necesita: false, cur_realizada: false, npt: false, npt_pct: "", npt_fecha: "", sexo: "", pendientes_mips: "", pendientes_r1: "",
           aneurisma: false, aneurisma_fecha_nimo: "",
@@ -5432,7 +5404,7 @@
       });
       const _cb = document.getElementById("count-badge");
       if (_cb) _cb.innerHTML = filtered.length + " pacientes" + (ALL_BEDS.length ? ` · <a href="#" onclick="event.preventDefault();scrollToFreeBeds()" style="color:#059669;text-decoration:underline;cursor:pointer;font-weight:700" title="Ver camas libres">${getFreeBeds().length} camas libres 🛏</a>` : "");
-      ["piso", "census", "print", "noOlvidar", "altas", "pendientes", "programacion"].forEach(v => {
+      ["piso", "census", "print", "noOlvidar", "altas", "pendientes", "programacion", "interconsultas", "itinerario"].forEach(v => {
         const _ve = document.getElementById("view-" + v);
         if (_ve) _ve.style.display = currentView === v ? "" : "none";
       });
@@ -5443,6 +5415,8 @@
       if (currentView === "altas") renderAltas();
       if (currentView === "pendientes") renderPendientes(filtered);
       if (currentView === "programacion") renderProgramacion();
+      if (currentView === "interconsultas") renderInterconsultas();
+      if (currentView === "itinerario") renderItinerario();
     }
 
     // ─── ESP FILTERS ─────────────────────────────────────────────────────────────────
@@ -5894,6 +5868,7 @@
       return `<div class="full-card${noEnCenso ? ' flag-noencenso' : ''}${alerts.some(a => a.type === 'critico' || a.type === 'labs_crit') ? ' card-critica' : ''}${esIngreso ? ' card-ingreso' : ''}" id="card-${k}">
     <div class="card-header" style="background:linear-gradient(90deg,${ec} 0%,${ec}cc 100%)">
       <div class="card-header-row1">
+        <span style="cursor:pointer;font-size:14px;opacity:.7;margin-right:2px" data-ck="${k}" onclick="toggleCollapseCard(this.dataset.ck)" id="collapse-btn-${k.replace(/[^a-zA-Z0-9_-]/g, '_')}" title="Minimizar/expandir tarjeta">${collapsedCards[k] ? '▸' : '▾'}</span>
         <span class="card-bed" data-expandkey="${k}" onclick="toggleExpand(this.dataset.expandkey)">${esc(p.cama) || '<em style="opacity:.6;font-style:italic">S/C</em>'}</span>
         <span class="card-name" data-expandkey="${k}" onclick="toggleExpand(this.dataset.expandkey)">${esc(p.nombre) || '<em style="opacity:.6;font-style:italic">SIN NOMBRE</em>'}</span>
         <span class="card-age" data-expandkey="${k}" onclick="toggleExpand(this.dataset.expandkey)">· ${p.edad ? p.edad + 'a' : '?'}</span>
@@ -5915,7 +5890,7 @@
       <div class="card-sub">Exp: ${esc(p.exp)} · Ing: ${esc(p.ingreso)} · ${esc(p.adscrito)}/${esc(p.residente)}</div>
       ${alerts.length ? `<div style="display:flex;flex-wrap:wrap;gap:3px;padding:3px 10px 5px">${renderAlertBadges(alerts)}</div>` : ""}
     </div>
-    ${exp ? `<div class="card-body">
+    ${exp ? `<div class="card-body" id="card-body-${k.replace(/[^a-zA-Z0-9_-]/g, '_')}" style="display:${collapsedCards[k] ? 'none' : ''}">
       ${noEnCenso ? `<div style="background:#fff3cd;border:1px solid #fcd34d;border-radius:6px;padding:7px 12px;margin-bottom:10px;font-size:12px;color:#78350f">
         ⚠️ <strong>Este paciente no aparece en el último censo importado.</strong> Puede haber tenido alta, defunción o traslado. Usa el botón 🚪 para retirar del censo o edita para actualizar sus datos.
       </div>`: ''}
@@ -5965,6 +5940,7 @@
       ${renderTacControl(nd, k)}
       ${renderMedicamentos(nd, k)}
       ${renderCultivos(nd, k)}
+      ${renderNeuroExam(nd, k, p)}
       ${renderBodyDiagram(nd, k)}
       ${renderCvcVault(nd, k)}
       ${renderDocumentVault(nd, k)}
@@ -6042,6 +6018,8 @@
 
     // ─── TAC CONTROL CHECKLIST ────────────────────────────────────────────────────
     function renderTacControl(nd, k) {
+      // Only show TAC control if it was requested (via procedure)
+      if (!nd.tac_control_requested) return '';
       const checked = nd.tac_control ? 'checked' : '';
       return `<div style="margin-top:10px;padding:8px 12px;border:1px solid #bae6fd;border-radius:8px;background:#f0f9ff;display:flex;align-items:center;gap:10px">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:700;color:#0369a1">
@@ -6386,9 +6364,12 @@
         </div>
         <div id="qx-exp-${ek}" style="display:none;margin-top:6px;padding:8px;background:#faf5ff;border:1px solid #d8b4fe;border-radius:8px">
           ${listHtml}
-          <div style="display:flex;gap:4px;margin-top:6px">
+          <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;align-items:center">
             <input id="qx-fecha-${ek}" type="date" class="pm-input" style="width:130px" value="${todayStr()}"/>
             <input id="qx-proc-${ek}" class="pm-input" placeholder="Procedimiento quirúrgico..." style="flex:1;text-align:left"/>
+            <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:#0369a1;cursor:pointer;white-space:nowrap">
+              <input type="checkbox" id="qx-tac-${ek}" style="width:14px;height:14px"/> Solicitar TAC control
+            </label>
             <button style="background:#059669;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:11px;cursor:pointer;font-weight:700" onclick="addQxProc('${k}')">+ Agregar</button>
           </div>
         </div>
@@ -6402,6 +6383,15 @@
       const nd = getNote(k);
       if (!nd.qx_procedimientos) nd.qx_procedimientos = [];
       nd.qx_procedimientos.push({ fecha: fecha, procedimiento: proc.trim() });
+      // Check if TAC control was requested
+      const tacCb = document.getElementById('qx-tac-' + ek);
+      if (tacCb && tacCb.checked) {
+        nd.tac_control_requested = true;
+        nd.tac_control = false;
+        // Add to pendientes
+        const pendMsg = '🧠 TAC de control post ' + proc.trim() + ' (' + fecha + ')';
+        nd.pendientes = (nd.pendientes || '').trim() ? nd.pendientes.trim() + '\n' + pendMsg : pendMsg;
+      }
       noteData[k] = nd; saveNote(k, nd); renderView();
     }
     function removeQxProc(k, idx) {
@@ -6456,8 +6446,9 @@
           <option value="fija"${val==='fija'?' selected':''}>Fija</option>
         </select>`;
       }
+      var ne = nd.neuro_exam || {};
       return `<div style="margin-top:10px;padding:8px 12px;border:1px solid #fbbf24;border-radius:8px;background:#fffbeb">
-        <div class="field-label" style="color:#92400e">👁 Pupilas</div>
+        <div class="field-label" style="color:#92400e">👁 Pupilas & Neuro</div>
         <div style="display:flex;gap:20px;align-items:center;justify-content:center;margin-top:6px">
           <div style="text-align:center">
             <div style="font-size:10px;font-weight:700;color:#475569;margin-bottom:2px">DERECHA</div>
@@ -6476,6 +6467,11 @@
               ${reactSelect('izq', p.izq_react || 'reactiva')}
             </div>
           </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;border-top:1px solid #fde68a;padding-top:8px">
+          <div class="pm-field"><span class="pm-label" style="font-weight:800;color:#0f172a">Glasgow</span><input class="pm-input" style="font-weight:700;font-size:13px;text-align:center" value="${esc(ne.glasgow || '')}" placeholder="15/15" data-key="${k}" data-nefield="glasgow" oninput="updateNeuro(this.dataset.key,this.dataset.nefield,this.value)"/></div>
+          <div class="pm-field"><span class="pm-label" style="font-weight:800;color:#0f172a">FOUR</span><input class="pm-input" style="font-weight:700;font-size:13px;text-align:center" value="${esc(ne.four || '')}" placeholder="16/16" data-key="${k}" data-nefield="four" oninput="updateNeuro(this.dataset.key,this.dataset.nefield,this.value)"/></div>
+          <div class="pm-field"><span class="pm-label" style="font-weight:800;color:#0f172a">Tono muscular</span><input class="pm-input" value="${esc(ne.tono || '')}" placeholder="Normal" data-key="${k}" data-nefield="tono" oninput="updateNeuro(this.dataset.key,this.dataset.nefield,this.value)"/></div>
         </div>
       </div>`;
     }
@@ -7430,17 +7426,22 @@
       }).join(", ");
     }
     function buildSingleLabExtractionPrompt(isImage) {
-      return "Extrae TODOS los valores de laboratorio de este " + (isImage ? "resultado (imagen)" : "PDF") + " del Hospital General de León. Incluye BH completa, electrolitos, función renal, hepática, coagulación, gasometría, EGO, y si es Líquido Cefalorraquídeo (LCR): glucosa LCR, proteínas LCR, DHL LCR, cloro LCR, leucocitos LCR, eritrocitos LCR, PMN%, MN%, Gram, tinta china, cultivo LCR. Responde SOLO con JSON valido sin markdown ni texto adicional:\n" +
+      return "Eres un extractor de laboratorios del Hospital General de León. Extrae TODOS los valores de este " + (isImage ? "resultado (imagen)" : "PDF") + ".\n" +
+        "El documento puede tener formato desordenado, columnas rotas, texto corrido o pérdida parcial de estructura. Interpreta visualmente y por contexto.\n" +
+        "Incluye: BH completa (Hb, Hto, Leucocitos, Plaquetas, Neutrófilos, Linfocitos, etc.), electrolitos (Na, K, Cl, Ca, Mg, P), función renal (Cr, Urea, Glucosa), hepática (AST/TGO, ALT/TGP, BT, BD, GGT, FA), coagulación (TP, TTP, INR, Fibrinógeno), gasometría (pH, pCO2, pO2, HCO3, BE, SatO2), EGO, y LCR si aplica.\n" +
+        "Responde ÚNICAMENTE con JSON válido, sin markdown ni texto adicional:\n" +
         buildClinicalLabsExtractionTemplate(false) + "\n" +
-        "Reglas: valores numericos sin unidades, texto tal como aparece para EGO y LCR (Gram, tinta china, cultivo, aspecto, color). Para leucocitos LCR en formato 10³/µL convertir a cel/µL (multiplicar x1000). Fecha en YYYY-MM-DD (usar TOMA DE MUESTRA). Paciente en APELLIDOS NOMBRE. Si un valor no existe, dejar \"\". " +
-        "Mapeo: " + buildClinicalLabsMappingText() + ".";
+        "Reglas:\n- Valores numéricos SIN unidades (convertir todo a número)\n- Si un valor no aparece, usar \"\"\n- No inventar datos\n- Si hay varias fechas, usar la más reciente (campo TOMA DE MUESTRA)\n- Si hay varias páginas, integrar toda la información\n- Fecha en YYYY-MM-DD\n- Paciente en APELLIDOS NOMBRE\n- Reconoce equivalencias: Hemoglobina=hb, Leucocitos/WBC=leucos, Plaquetas/PLT=plaq, Sodio/Na=na, Potasio/K=k, Cloro/Cl=cl, Creatinina=cr, Glucosa=glu, Hematocrito=hto\n- Para EGO y LCR se permite texto (aspecto, color, Gram, tinta china, cultivo)\n" +
+        "Mapeo completo: " + buildClinicalLabsMappingText() + ".";
     }
     function buildBulkLabExtractionPrompt() {
-      return 'Analiza este PDF de laboratorio del Hospital General de León. Determina si es (A) laboratorio de quimica clinica/biometria hematica/gasometria/EGO/LCR (líquido cefalorraquídeo) o (B) cultivo microbiologico (hemocultivo, urocultivo, coprocultivo, cultivo de herida, esputo, secrecion, etc.).\n\n' +
-        "Si es (A) labs clinicos (incluyendo LCR), responde SOLO con este JSON:\n" + buildClinicalLabsExtractionTemplate(true) + "\n\n" +
-        "Si es (B) cultivo microbiologico, responde SOLO con este JSON:\n" + CULTIVO_EXTRACTION_TEMPLATE + '\n\n' +
-        'Reglas: valores numericos sin unidades para quimica/biometria/gasometria; en EGO, LCR (aspecto, color, Gram, tinta china, cultivo) y microbiologia se permite texto. Para leucocitos LCR en formato 10³/µL convertir a cel/µL (x1000). Fecha en YYYY-MM-DD (usar TOMA DE MUESTRA), paciente en APELLIDOS NOMBRE tal como aparece en el documento (SIN incluir el tipo de cultivo ni palabras como hemocultivo/urocultivo). Si un campo no existe dejar "". ' +
-        "Mapeo: " + buildClinicalLabsMappingText() + ".";
+      return 'Eres un extractor de laboratorios del Hospital General de León. Analiza este PDF de laboratorio.\n' +
+        'El documento puede tener formato desordenado, columnas rotas, texto corrido o pérdida parcial de estructura. Interpreta visualmente y por contexto los resultados.\n\n' +
+        'Determina si es (A) laboratorio clínico (química clínica/biometría hemática/gasometría/EGO/LCR) o (B) cultivo microbiológico (hemocultivo central, hemocultivo periférico, urocultivo, cultivo de LCR, coprocultivo, cultivo de herida, esputo, secreción, etc.).\n\n' +
+        "Si es (A) labs clínicos, responde SOLO con este JSON:\n" + buildClinicalLabsExtractionTemplate(true) + "\n\n" +
+        "Si es (B) cultivo microbiológico, responde SOLO con este JSON:\n" + CULTIVO_EXTRACTION_TEMPLATE + '\n\n' +
+        'Reglas:\n- Valores numéricos SIN unidades (convertir todo a número)\n- Si un valor no aparece, usar ""\n- No inventar datos\n- Si hay varias fechas, usar la más reciente (campo TOMA DE MUESTRA)\n- Si hay varias páginas, integrar toda la información\n- Fecha en YYYY-MM-DD, paciente en APELLIDOS NOMBRE\n- Para EGO, LCR y microbiología se permite texto\n- Reconoce equivalencias: Hemoglobina=hb, Leucocitos/WBC=leucos, Plaquetas/PLT=plaq, Sodio/Na=na, Potasio/K=k, Cloro/Cl=cl, Creatinina=cr, Glucosa=glu\n' +
+        "Mapeo completo: " + buildClinicalLabsMappingText() + ".";
     }
 
     // ─── LOCAL PDF TEXT EXTRACTION (fallback sin API) ─────────────────────────────
@@ -7836,8 +7837,10 @@
         }
       }
 
-      return `<div class='lab-cell ${cls}' ${hasAlert ? `onmouseenter="showLabTip('${tid}')" onmouseleave="hideLabTip('${tid}')" onclick="showLabTip('${tid}',true)"` : ""}>` +
-        `<div class='lab-key'>${lf.label}</div>` +
+      const isNa = lf.key === 'na';
+      const naStyle = isNa ? ';border:2px solid #2563eb;background:#dbeafe;box-shadow:0 0 6px rgba(37,99,235,.3)' : '';
+      return `<div class='lab-cell ${cls}' style='${isNa?"position:relative":""}${naStyle}' ${hasAlert ? `onmouseenter="showLabTip('${tid}')" onmouseleave="hideLabTip('${tid}')" onclick="showLabTip('${tid}',true)"` : ""}>` +
+        `<div class='lab-key' ${isNa?'style="font-weight:900;color:#1e40af;font-size:11px"':''}>${lf.label}${isNa?' ⚡':''}</div>` +
         `<input class='lab-input ${cls}' value='${esc(val)}' placeholder='—'` +
         ` data-key='${k}' data-labkey='${lf.key}' data-fecha='${fecha}'` +
         ` oninput="liveLabUpdate(this)" onchange="updateLabHistory(this.dataset.key,this.dataset.fecha,this.dataset.labkey,this.value)"/>` +
@@ -8732,12 +8735,14 @@ Si no hay alteraciones: {"alteraciones":[],"resumen":"...","prioridad":"baja"}`;
         { id: "piso3", label: "🏥 PISO 3 — TYO / NCX", color: "#1a3a6b", sortBase: 0 },
         { id: "piso4", label: "🏨 PISO 4 — MEDICINA INTERNA", color: "#1a5276", sortBase: 1 },
         { id: "uci", label: "🚨 UCI (UCIA / UTI)", color: "#7b0000", sortBase: 2 },
-        { id: "pediatria", label: "👶 PISO 2 — PEDIATRÍA / UCIP", color: "#0077b6", sortBase: 3 },
-        { id: "gyo_onco", label: "🏨 GYO / ONCOLOGÍA", color: "#6b006b", sortBase: 4 },
-        { id: "defunciones", label: "🕊 DEFUNCIONES", color: "#555", sortBase: 5 },
-        { id: "procedimientos", label: "🔪 QUIRÓFANO / PROCEDIMIENTOS", color: "#4a3580", sortBase: 6 },
-        { id: "altas", label: "✅ ALTAS", color: "#27ae60", sortBase: 7 },
-        { id: "otros", label: "📋 OTROS", color: "#888", sortBase: 8 },
+        { id: "urgencias", label: "🚑 URGENCIAS (INH / OBS / PC)", color: "#c2410c", sortBase: 3 },
+        { id: "pediatria", label: "👶 PISO 2 — PEDIATRÍA / UCIP", color: "#0077b6", sortBase: 4 },
+        { id: "rcp3", label: "🩶 RCP3", color: "#6b7280", sortBase: 5 },
+        { id: "gyo_onco", label: "🏨 GYO / ONCOLOGÍA", color: "#6b006b", sortBase: 6 },
+        { id: "defunciones", label: "🕊 DEFUNCIONES", color: "#555", sortBase: 7 },
+        { id: "procedimientos", label: "🔪 QUIRÓFANO / PROCEDIMIENTOS", color: "#4a3580", sortBase: 8 },
+        { id: "altas", label: "✅ ALTAS", color: "#27ae60", sortBase: 9 },
+        { id: "otros", label: "📋 OTROS", color: "#888", sortBase: 10 },
       ];
 
       function getBedSection(p) {
@@ -8754,12 +8759,15 @@ Si no hay alteraciones: {"alteraciones":[],"resumen":"...","prioridad":"baja"}`;
         // Piso 2 = Pediatría / UCIP
         if (/^2-\d+$/.test(s) || /^(PEDI|UCIP)/i.test(s)) return "pediatria";
         // UCI = UCIA / UTI
-        if (/^(UCI|UCIA|UTI)/i.test(s)) return "uci";
+        if (/^(UCI|UCIA|UTI)\b/i.test(s)) return "uci";
+        // Urgencias = INH / OBS / PC
+        if (/^(INH|OBS|PC)\b/i.test(s)) return "urgencias";
+        // RCP3
+        if (/^RCP3?\b/i.test(s)) return "rcp3";
         if (/^(RECU|RECUP|ENDOS|PROC|CIRUG|ENDOSC)/i.test(s)) return "procedimientos";
         if (/^(ALTA|EGRESO)/i.test(s)) return "altas";
         if (/^(DEF|FALLEC|OBITO)/i.test(s)) return "defunciones";
         if (/^\d+-\d+$/.test(s)) {
-          // Other floors — classify by specialty
           if (/GYO|ONCO/i.test(esp)) return "gyo_onco";
           if (/PEDI/i.test(esp)) return "pediatria";
           return "otros";
@@ -8864,7 +8872,9 @@ Si no hay alteraciones: {"alteraciones":[],"resumen":"...","prioridad":"baja"}`;
         { id: "piso3", label: "🏥 PISO 3 — TYO / NCX", color: "#0a1628" },
         { id: "piso4", label: "🏨 PISO 4 — MEDICINA INTERNA", color: "#1a5276" },
         { id: "uci", label: "🚨 UCI (UCIA / UTI)", color: "#7b0000" },
+        { id: "urgencias", label: "🚑 URGENCIAS (INH / OBS / PC)", color: "#c2410c" },
         { id: "pediatria", label: "👶 PISO 2 — PEDIATRÍA / UCIP", color: "#0077b6" },
+        { id: "rcp3", label: "🩶 RCP3", color: "#6b7280" },
         { id: "gyo_onco", label: "🏨 GYO / ONCOLOGÍA", color: "#6b006b" },
         { id: "procedimientos", label: "🔬 PROCEDIMIENTOS", color: "#4a3580" },
         { id: "altas", label: "✅ ALTAS", color: "#27ae60" },
@@ -8877,7 +8887,9 @@ Si no hay alteraciones: {"alteraciones":[],"resumen":"...","prioridad":"baja"}`;
         if (/^3-\d+$/.test(s)) return "piso3";
         if (/^4-\d+$/.test(s)) return "piso4";
         if (/^2-\d+$/.test(s) || /^(PEDI|UCIP)/i.test(s)) return "pediatria";
-        if (/^(UCI|UCIA|UTI)/i.test(s)) return "uci";
+        if (/^(UCI|UCIA|UTI)\b/i.test(s)) return "uci";
+        if (/^(INH|OBS|PC)\b/i.test(s)) return "urgencias";
+        if (/^RCP3?\b/i.test(s)) return "rcp3";
         if (/^(RECU|RECUP|ENDOS|PROC)/i.test(s)) return "procedimientos";
         if (/^\d+-\d+$/.test(s)) {
           const esp2 = String(p.esp || "").toUpperCase();
@@ -9028,8 +9040,10 @@ Si no hay alteraciones: {"alteraciones":[],"resumen":"...","prioridad":"baja"}`;
                 }
                 tags.push('<span style="background:#7c3aed;color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700">🧠 Aneurisma' + (nimoDays ? ' Nimo D' + nimoDays : '') + '</span>');
               }
-              if (nd.tac_control) tags.push('<span style="background:#059669;color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700">✓ TAC CTRL</span>');
-              else tags.push('<span style="background:#dc2626;color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700">TAC PEND</span>');
+              if (nd.tac_control_requested) {
+                if (nd.tac_control) tags.push('<span style="background:#059669;color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700">✓ TAC CTRL</span>');
+                else tags.push('<span style="background:#dc2626;color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700">TAC PEND</span>');
+              }
               // Cultivos pendientes
               const cultivos = nd.cultivos || [];
               const cultivoPend = cultivos.filter(c => c.status === 'pendiente');
@@ -13237,6 +13251,268 @@ ${nd.pendientes.trim()}` : "⚠️ Plan: (sin registrar)",
       });
       html += `</div></div>`;
       el.innerHTML = html;
+    }
+
+    // ─── INTERCONSULTAS ─────────────────────────────────────────────────────────
+    var interconsultas = JSON.parse(localStorage.getItem('pl_interconsultas') || '[]');
+    function saveInterconsultas() { localStorage.setItem('pl_interconsultas', JSON.stringify(interconsultas)); }
+    function addInterconsulta() {
+      interconsultas.push({
+        id: Date.now(),
+        fecha: todayStr(),
+        nombre: '', curp: '', expediente: '', edad: '', sexo: '', fecha_nacimiento: '',
+        motivo: '', ef: '', sv: '', analisis: '', plan: '',
+        residente: '', adscrito: ''
+      });
+      saveInterconsultas(); renderInterconsultas();
+    }
+    function removeInterconsulta(id) {
+      interconsultas = interconsultas.filter(function(ic){ return ic.id !== id; });
+      saveInterconsultas(); renderInterconsultas();
+    }
+    function updateIC(id, field, val) {
+      var ic = interconsultas.find(function(x){ return x.id === id; });
+      if (ic) { ic[field] = val; saveInterconsultas(); }
+    }
+    function renderInterconsultas() {
+      var el = document.getElementById('view-interconsultas');
+      if (!el) return;
+      var todayICs = interconsultas.filter(function(ic){ return ic.fecha === todayStr(); });
+      var oldICs = interconsultas.filter(function(ic){ return ic.fecha !== todayStr(); });
+      var html = '<div style="padding:16px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">' +
+        '<h2 style="font-size:18px;font-weight:800;color:#0f172a;margin:0">🩺 Interconsultas</h2>' +
+        '<button onclick="addInterconsulta()" style="background:#1a3a6b;color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">+ Nueva Interconsulta</button>' +
+        '</div>';
+
+      function icCard(ic) {
+        var iid = ic.id;
+        return '<div style="border:1px solid #e2e8f0;border-radius:10px;background:#fff;margin-bottom:12px;overflow:hidden">' +
+          '<div style="background:linear-gradient(90deg,#1a3a6b,#2563eb);color:#fff;padding:8px 14px;display:flex;align-items:center;justify-content:space-between">' +
+          '<span style="font-weight:700;font-size:13px">IC — ' + esc(ic.fecha) + '</span>' +
+          '<div><button onclick="removeInterconsulta(' + iid + ')" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">✕ Eliminar</button></div>' +
+          '</div>' +
+          '<div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">' +
+          icField(iid, 'nombre', 'Nombre completo', ic.nombre, true) +
+          icField(iid, 'curp', 'CURP', ic.curp) +
+          icField(iid, 'expediente', 'Expediente', ic.expediente) +
+          icField(iid, 'edad', 'Edad', ic.edad) +
+          icField(iid, 'sexo', 'Sexo', ic.sexo) +
+          icField(iid, 'fecha_nacimiento', 'Fecha nacimiento', ic.fecha_nacimiento) +
+          '</div>' +
+          '<div style="padding:0 14px 12px;display:grid;grid-template-columns:1fr;gap:8px">' +
+          icArea(iid, 'motivo', 'Motivo de consulta', ic.motivo) +
+          icArea(iid, 'sv', 'Signos vitales', ic.sv) +
+          icArea(iid, 'ef', 'Exploración física', ic.ef) +
+          icArea(iid, 'analisis', 'Análisis', ic.analisis) +
+          icArea(iid, 'plan', 'Plan', ic.plan) +
+          '</div>' +
+          '<div style="padding:0 14px 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+          icField(iid, 'residente', 'Residente que ve IC', ic.residente) +
+          icField(iid, 'adscrito', 'Adscrito que ve IC', ic.adscrito) +
+          '</div></div>';
+      }
+      function icField(iid, f, lbl, val, full) {
+        return '<div' + (full ? ' style="grid-column:span 3"' : '') + '>' +
+          '<div style="font-size:9px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px">' + lbl + '</div>' +
+          '<input value="' + esc(val || '') + '" onchange="updateIC(' + iid + ',\'' + f + '\',this.value)" style="width:100%;border:1px solid #d1d5db;border-radius:5px;padding:4px 8px;font-size:12px;font-family:inherit"/>' +
+          '</div>';
+      }
+      function icArea(iid, f, lbl, val) {
+        return '<div>' +
+          '<div style="font-size:9px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px">' + lbl + '</div>' +
+          '<textarea onchange="updateIC(' + iid + ',\'' + f + '\',this.value)" style="width:100%;border:1px solid #d1d5db;border-radius:5px;padding:4px 8px;font-size:12px;font-family:inherit;min-height:50px;resize:vertical">' + esc(val || '') + '</textarea>' +
+          '</div>';
+      }
+
+      if (todayICs.length) {
+        html += '<div style="font-size:13px;font-weight:700;color:#1a3a6b;margin-bottom:8px">📋 Hoy (' + todayStr() + ') — ' + todayICs.length + ' interconsultas</div>';
+        todayICs.forEach(function(ic){ html += icCard(ic); });
+      }
+      if (oldICs.length) {
+        html += '<div style="font-size:13px;font-weight:700;color:#64748b;margin:16px 0 8px">📂 Anteriores</div>';
+        oldICs.sort(function(a,b){ return b.fecha.localeCompare(a.fecha); });
+        oldICs.forEach(function(ic){ html += icCard(ic); });
+      }
+      if (!interconsultas.length) {
+        html += '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:14px">No hay interconsultas registradas. Presiona "+ Nueva Interconsulta".</div>';
+      }
+      html += '</div>';
+      el.innerHTML = html;
+    }
+
+    // ─── ITINERARIO / CALENDARIO RESIDENTES ──────────────────────────────────────
+    const RESIDENTES = [
+      { nombre: 'Dr. Ramos', rango: 'R1 NCX', color: '#0ea5e9' },
+      { nombre: 'Dra. Aguilar', rango: 'R2 NCX', color: '#f59e0b' },
+      { nombre: 'Dr. Ruiz', rango: 'R1 NCX', color: '#10b981' },
+      { nombre: 'Dr. Moreno', rango: 'R2 NCX', color: '#8b5cf6' }
+    ];
+    // Orden de guardias: Ramos(0) hoy 27-mar-2026, Aguilar(1) 28-mar, Ruiz(2) 29-mar, Moreno(3) 30-mar, luego repite
+    const GUARDIA_EPOCH = new Date('2026-03-27T00:00:00');
+    const GUARDIA_ORDER = [0, 1, 2, 3]; // Ramos, Aguilar, Ruiz, Moreno
+    const ROLES = ['🏥 Guardia (Piso)', '🔪 Pre-preguardia (Cirugías programadas)', '🚑 Preguardia (Urgencias)', '🏠 Postguardia (Consulta externa)'];
+    const ROLE_COLORS = ['#dc2626', '#7c3aed', '#ea580c', '#059669'];
+
+    function getGuardiaIndex(date) {
+      var diff = Math.floor((date.getTime() - GUARDIA_EPOCH.getTime()) / 86400000);
+      return ((diff % 4) + 4) % 4;
+    }
+    function getRolesForDate(date) {
+      var gi = getGuardiaIndex(date);
+      // guardia = gi, pre-preguardia = (gi+1)%4, preguardia = (gi+2)%4, postguardia = (gi+3)%4
+      return [
+        { res: RESIDENTES[GUARDIA_ORDER[gi]], role: ROLES[0], roleColor: ROLE_COLORS[0] },
+        { res: RESIDENTES[GUARDIA_ORDER[(gi+1)%4]], role: ROLES[1], roleColor: ROLE_COLORS[1] },
+        { res: RESIDENTES[GUARDIA_ORDER[(gi+2)%4]], role: ROLES[2], roleColor: ROLE_COLORS[2] },
+        { res: RESIDENTES[GUARDIA_ORDER[(gi+3)%4]], role: ROLES[3], roleColor: ROLE_COLORS[3] }
+      ];
+    }
+
+    var itinerarioMonth = new Date().getMonth();
+    var itinerarioYear = new Date().getFullYear();
+    function renderItinerario() {
+      var el = document.getElementById('view-itinerario');
+      if (!el) return;
+      var today = new Date();
+      var todayRoles = getRolesForDate(today);
+
+      var html = '<div style="padding:16px">' +
+        '<h2 style="font-size:18px;font-weight:800;color:#0f172a;margin:0 0 14px">📅 Itinerario de Residentes 2026</h2>';
+
+      // Today's assignments
+      html += '<div style="border:2px solid #1a3a6b;border-radius:10px;padding:14px;background:#f0f9ff;margin-bottom:16px">' +
+        '<div style="font-size:14px;font-weight:800;color:#1a3a6b;margin-bottom:10px">🗓 HOY — ' + today.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'}) + '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">';
+      todayRoles.forEach(function(r) {
+        html += '<div style="border:1px solid ' + r.roleColor + ';border-radius:8px;padding:10px;background:#fff">' +
+          '<div style="font-size:10px;font-weight:700;color:' + r.roleColor + ';text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">' + r.role + '</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#0f172a">' + r.res.nombre + '</div>' +
+          '<div style="font-size:11px;color:#64748b">' + r.res.rango + '</div>' +
+          '</div>';
+      });
+      html += '</div></div>';
+
+      // Calendar navigation
+      var months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">' +
+        '<button onclick="itinerarioMonth--;if(itinerarioMonth<0){itinerarioMonth=11;itinerarioYear--}renderItinerario()" style="background:#e2e8f0;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:16px;font-weight:700">◀</button>' +
+        '<span style="font-size:16px;font-weight:800;color:#0f172a">' + months[itinerarioMonth] + ' ' + itinerarioYear + '</span>' +
+        '<button onclick="itinerarioMonth++;if(itinerarioMonth>11){itinerarioMonth=0;itinerarioYear++}renderItinerario()" style="background:#e2e8f0;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:16px;font-weight:700">▶</button>' +
+        '</div>';
+
+      // Legend
+      html += '<div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap">';
+      RESIDENTES.forEach(function(r) {
+        html += '<div style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:50%;background:' + r.color + ';display:inline-block"></span><span style="font-size:11px;font-weight:600">' + r.nombre + ' (' + r.rango + ')</span></div>';
+      });
+      html += '</div>';
+
+      // Calendar grid
+      var firstDay = new Date(itinerarioYear, itinerarioMonth, 1);
+      var daysInMonth = new Date(itinerarioYear, itinerarioMonth + 1, 0).getDate();
+      var startWeekday = firstDay.getDay(); // 0=Sun
+      var dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+      html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:#e2e8f0;border-radius:8px;overflow:hidden">';
+      dayNames.forEach(function(d){ html += '<div style="background:#1a3a6b;color:#fff;text-align:center;padding:6px;font-size:11px;font-weight:700">' + d + '</div>'; });
+      for (var i = 0; i < startWeekday; i++) html += '<div style="background:#f8fafc;padding:6px"></div>';
+      for (var d = 1; d <= daysInMonth; d++) {
+        var dateObj = new Date(itinerarioYear, itinerarioMonth, d);
+        var isToday = dateObj.toDateString() === today.toDateString();
+        var gi = getGuardiaIndex(dateObj);
+        var guardiaRes = RESIDENTES[GUARDIA_ORDER[gi]];
+        html += '<div style="background:' + (isToday ? '#dbeafe' : '#fff') + ';padding:4px;min-height:60px;border:' + (isToday ? '2px solid #2563eb' : '1px solid #e2e8f0') + '">' +
+          '<div style="font-size:12px;font-weight:' + (isToday ? '800' : '600') + ';color:' + (isToday ? '#1e40af' : '#334155') + '">' + d + '</div>' +
+          '<div style="font-size:9px;font-weight:700;color:#fff;background:' + guardiaRes.color + ';border-radius:3px;padding:1px 4px;margin-top:2px;text-align:center" title="Guardia">' + guardiaRes.nombre.replace('Dr. ','').replace('Dra. ','') + '</div>' +
+          '</div>';
+      }
+      html += '</div></div>';
+      el.innerHTML = html;
+    }
+
+    // ─── COLLAPSE / MINIMIZE PATIENT CARDS ────────────────────────────────────────
+    var collapsedCards = {};
+    function toggleCollapseCard(k) {
+      collapsedCards[k] = !collapsedCards[k];
+      var body = document.getElementById('card-body-' + k.replace(/[^a-zA-Z0-9_-]/g, '_'));
+      if (body) body.style.display = collapsedCards[k] ? 'none' : '';
+      var btn = document.getElementById('collapse-btn-' + k.replace(/[^a-zA-Z0-9_-]/g, '_'));
+      if (btn) btn.textContent = collapsedCards[k] ? '▸' : '▾';
+    }
+
+    // ─── TAC CONTROL - ONLY ON PROCEDURE ADD ──────────────────────────────────────
+    // TAC control is no longer default; only added when a procedure is created
+    // and user checks "Solicitar TAC de control"
+
+    // ─── NEUROLOGICAL EXAM FOR COLUMNA ────────────────────────────────────────────
+    function renderNeuroExam(nd, k, p) {
+      if (p.esp !== 'COLUMNA') return '';
+      var ne = nd.neuro_exam || {};
+      var ek = k.replace(/[^a-zA-Z0-9_-]/g, '_');
+      // Force table: C5-S1 dermatomal levels
+      var levels = ['C5','C6','C7','C8','T1','L2','L3','L4','L5','S1'];
+      var forceRows = levels.map(function(lv) {
+        var ld = ne['f_' + lv + '_d'] || '';
+        var li = ne['f_' + lv + '_i'] || '';
+        return '<tr>' +
+          '<td style="font-weight:700;font-size:11px;padding:2px 6px;border:1px solid #d1d5db">' + lv + '</td>' +
+          '<td style="border:1px solid #d1d5db;padding:2px"><input value="' + esc(ld) + '" onchange="updateNeuro(\'' + k + '\',\'f_' + lv + '_d\',this.value)" style="width:40px;text-align:center;border:none;font-size:11px;font-family:inherit" placeholder="0-5"/></td>' +
+          '<td style="border:1px solid #d1d5db;padding:2px"><input value="' + esc(li) + '" onchange="updateNeuro(\'' + k + '\',\'f_' + lv + '_i\',this.value)" style="width:40px;text-align:center;border:none;font-size:11px;font-family:inherit" placeholder="0-5"/></td>' +
+          '</tr>';
+      }).join('');
+      // Reflexes
+      var reflexes = ['Bicipital','Tricipital','Estilorradial','Rotuliano','Aquíleo'];
+      var reflexRows = reflexes.map(function(rf) {
+        var rd = ne['r_' + rf + '_d'] || '';
+        var ri = ne['r_' + rf + '_i'] || '';
+        return '<tr>' +
+          '<td style="font-weight:700;font-size:11px;padding:2px 6px;border:1px solid #d1d5db">' + rf + '</td>' +
+          '<td style="border:1px solid #d1d5db;padding:2px"><input value="' + esc(rd) + '" onchange="updateNeuro(\'' + k + '\',\'r_' + rf + '_d\',this.value)" style="width:50px;text-align:center;border:none;font-size:11px" placeholder="+/++"/></td>' +
+          '<td style="border:1px solid #d1d5db;padding:2px"><input value="' + esc(ri) + '" onchange="updateNeuro(\'' + k + '\',\'r_' + rf + '_i\',this.value)" style="width:50px;text-align:center;border:none;font-size:11px" placeholder="+/++"/></td>' +
+          '</tr>';
+      }).join('');
+      // Sensitivity
+      var sensRows = levels.map(function(lv) {
+        var sd = ne['s_' + lv + '_d'] || '';
+        var si = ne['s_' + lv + '_i'] || '';
+        return '<tr>' +
+          '<td style="font-weight:700;font-size:11px;padding:2px 6px;border:1px solid #d1d5db">' + lv + '</td>' +
+          '<td style="border:1px solid #d1d5db;padding:2px"><input value="' + esc(sd) + '" onchange="updateNeuro(\'' + k + '\',\'s_' + lv + '_d\',this.value)" style="width:50px;text-align:center;border:none;font-size:11px" placeholder="N/↓/0"/></td>' +
+          '<td style="border:1px solid #d1d5db;padding:2px"><input value="' + esc(si) + '" onchange="updateNeuro(\'' + k + '\',\'s_' + lv + '_i\',this.value)" style="width:50px;text-align:center;border:none;font-size:11px" placeholder="N/↓/0"/></td>' +
+          '</tr>';
+      }).join('');
+
+      return '<div style="margin-top:10px;padding:10px 12px;border:1px solid #7c3aed;border-radius:8px;background:#faf5ff">' +
+        '<div class="field-label" style="color:#5b21b6;margin-bottom:8px">🧠 Exploración Neurológica — Columna</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">' +
+        // Fuerza
+        '<div><div style="font-size:10px;font-weight:700;color:#4c1d95;margin-bottom:4px">💪 FUERZA (0-5)</div>' +
+        '<table style="border-collapse:collapse;width:100%"><thead><tr><th style="font-size:9px;border:1px solid #d1d5db;padding:2px 4px">Nivel</th><th style="font-size:9px;border:1px solid #d1d5db;padding:2px">Der</th><th style="font-size:9px;border:1px solid #d1d5db;padding:2px">Izq</th></tr></thead><tbody>' + forceRows + '</tbody></table></div>' +
+        // Reflejos
+        '<div><div style="font-size:10px;font-weight:700;color:#4c1d95;margin-bottom:4px">🔨 REFLEJOS OT</div>' +
+        '<table style="border-collapse:collapse;width:100%"><thead><tr><th style="font-size:9px;border:1px solid #d1d5db;padding:2px 4px">Reflejo</th><th style="font-size:9px;border:1px solid #d1d5db;padding:2px">Der</th><th style="font-size:9px;border:1px solid #d1d5db;padding:2px">Izq</th></tr></thead><tbody>' + reflexRows + '</tbody></table></div>' +
+        // Sensibilidad
+        '<div><div style="font-size:10px;font-weight:700;color:#4c1d95;margin-bottom:4px">✋ SENSIBILIDAD</div>' +
+        '<table style="border-collapse:collapse;width:100%"><thead><tr><th style="font-size:9px;border:1px solid #d1d5db;padding:2px 4px">Nivel</th><th style="font-size:9px;border:1px solid #d1d5db;padding:2px">Der</th><th style="font-size:9px;border:1px solid #d1d5db;padding:2px">Izq</th></tr></thead><tbody>' + sensRows + '</tbody></table></div>' +
+        '</div>' +
+        // Pares craneales
+        '<div style="margin-top:8px">' +
+        '<div style="font-size:10px;font-weight:700;color:#4c1d95;margin-bottom:4px">🧬 Pares Craneales</div>' +
+        '<textarea onchange="updateNeuro(\'' + k + '\',\'pares_craneales\',this.value)" style="width:100%;border:1px solid #d1d5db;border-radius:5px;padding:4px 8px;font-size:11px;min-height:35px;resize:vertical;font-family:inherit" placeholder="I-XII: ...">' + esc(ne.pares_craneales || '') + '</textarea>' +
+        '</div>' +
+        // Tono muscular
+        '<div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">' +
+        '<div><div style="font-size:9px;font-weight:700;color:#475569">Glasgow</div><input value="' + esc(ne.glasgow || '') + '" onchange="updateNeuro(\'' + k + '\',\'glasgow\',this.value)" class="pm-input" placeholder="15/15" style="width:100%;text-align:center"/></div>' +
+        '<div><div style="font-size:9px;font-weight:700;color:#475569">FOUR</div><input value="' + esc(ne.four || '') + '" onchange="updateNeuro(\'' + k + '\',\'four\',this.value)" class="pm-input" placeholder="16/16" style="width:100%;text-align:center"/></div>' +
+        '<div><div style="font-size:9px;font-weight:700;color:#475569">Tono muscular</div><input value="' + esc(ne.tono || '') + '" onchange="updateNeuro(\'' + k + '\',\'tono\',this.value)" class="pm-input" placeholder="Normal/Hipo/Hiper" style="width:100%"/></div>' +
+        '<div><div style="font-size:9px;font-weight:700;color:#475569">ASIA</div><select onchange="updateNeuro(\'' + k + '\',\'asia\',this.value)" class="pm-input" style="width:100%"><option value="">--</option><option' + (ne.asia==='A'?' selected':'') + '>A</option><option' + (ne.asia==='B'?' selected':'') + '>B</option><option' + (ne.asia==='C'?' selected':'') + '>C</option><option' + (ne.asia==='D'?' selected':'') + '>D</option><option' + (ne.asia==='E'?' selected':'') + '>E</option></select></div>' +
+        '</div></div>';
+    }
+    function updateNeuro(k, field, val) {
+      var nd = getNote(k);
+      if (!nd.neuro_exam) nd.neuro_exam = {};
+      nd.neuro_exam[field] = val;
+      noteData[k] = nd; saveNote(k, nd);
     }
 
   </script>
