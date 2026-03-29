@@ -3067,8 +3067,8 @@
     const CONFIG_KEY = "hgl-worker-config";   // {url, token} (legacy)
 
     // ─── SUPABASE CONFIG ─────────────────────────────────────────────────────────────
-    const SUPA_URL = "https://vkxplmrzyqlamxpbtmes.supabase.co";
-    const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZreHBsbXJ6eXFsYW14cGJ0bWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NTg1MjcsImV4cCI6MjA4NzUzNDUyN30.zChMOiKnxNv3pLyt2Fqi7zUh0ET5rn1a5L6S3RV1Q98";
+    const SUPA_URL = "https://turcwbrpbaevmylhqpah.supabase.co";
+    const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1cmN3YnJwYmFldm15bGhxcGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MDc5MzgsImV4cCI6MjA5MDM4MzkzOH0.HPUk6Y7WLOQDMyup5OkmXc6sZJ7sB7tjbwlYcAalzDE";
     // _supa solo se usa para Realtime (WebSocket). Todas las operaciones HTTP
     // usan fetch() directo a la REST API para evitar el DataCloneError de supabase-js.
     const _supa = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
