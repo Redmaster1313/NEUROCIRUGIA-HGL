@@ -2941,6 +2941,16 @@
         <div class="proxy-status warn" id="proxy-status-box" style="display:none">Sin configurar.</div>
       </div>
 
+      <div class="config-section" style="margin-top:12px">
+        <h3>🤖 API Key de Google Gemini (GRATIS — extracción de labs con IA)</h3>
+        <p style="font-size:12px;color:#64748b;margin-bottom:8px">Pega tu API key de Gemini para extraer labs de PDFs con IA gratis. Obtén tu key en <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#2563eb">aistudio.google.com/apikey</a></p>
+        <div class="proxy-input-wrap">
+          <input id="gemini-key-input" placeholder="AIzaSy..." type="password" autocomplete="off" style="flex:1" />
+          <button class="btn-save" onclick="saveConfig()">Guardar</button>
+        </div>
+        <div id="gemini-status-box" style="display:none;font-size:11px;padding:6px 10px;border-radius:6px;margin-top:6px"></div>
+      </div>
+
       <details style="margin-top:12px">
         <summary style="cursor:pointer;font-size:12px;color:#94a3b8;font-weight:600">🔧 Worker proxy (legacy / avanzado)
         </summary>
@@ -3248,6 +3258,32 @@
       }
       throw new Error("NO_AI_CONFIG");
     }
+
+    function getGeminiKey() { return getConfig().gemini_key || ""; }
+
+    // ── Gemini AI call: sends PDF/image to Google Gemini API (free tier) ──
+    async function callGemini(base64, mimeType, promptText) {
+      const geminiKey = getGeminiKey();
+      if (!geminiKey) throw new Error("NO_GEMINI_KEY");
+      const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + geminiKey;
+      const parts = [
+        { inline_data: { mime_type: mimeType, data: base64 } },
+        { text: promptText }
+      ];
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: parts }], generationConfig: { temperature: 0.1, maxOutputTokens: 4000 } })
+      });
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error("Gemini API respondió " + resp.status + ": " + errText.slice(0, 300));
+      }
+      const data = await resp.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      return text;
+    }
+
     function renderUserChip() {
       const name = localStorage.getItem("pl_user_name") || "";
       const chip = document.getElementById("user-chip");
@@ -3268,18 +3304,31 @@
       const anthropic_key = document.getElementById("anthropic-key-input").value.trim();
       if (url && !url.startsWith("http")) { alert("La URL debe empezar con https://"); return; }
       if (anthropic_key && !anthropic_key.startsWith("sk-")) { alert("La API key debe empezar con sk-"); return; }
-      localStorage.setItem(CONFIG_KEY, JSON.stringify({ url, token, anthropic_key }));
+      const gemini_key = document.getElementById("gemini-key-input").value.trim();
+      if (gemini_key && !gemini_key.startsWith("AIza")) { alert("La API key de Gemini debe empezar con AIza"); return; }
+      localStorage.setItem(CONFIG_KEY, JSON.stringify({ url, token, anthropic_key, gemini_key }));
       updateProxyPill();
       updateProxyStatusBox((url || anthropic_key) ? "saved" : "empty");
+      var geminiBox = document.getElementById("gemini-status-box");
+      if (geminiBox) {
+        if (gemini_key) { geminiBox.style.display = "block"; geminiBox.style.background = "#dcfce7"; geminiBox.style.color = "#166534"; geminiBox.innerHTML = "✅ Gemini configurado — extracción IA gratuita activa"; }
+        else { geminiBox.style.display = "none"; }
+      }
       if (url) { startSyncPolling(); }
     }
 
     function openConfigModal() {
       const cfg = getConfig();
       document.getElementById("anthropic-key-input").value = cfg.anthropic_key || "";
+      document.getElementById("gemini-key-input").value = cfg.gemini_key || "";
       document.getElementById("proxy-url-input").value = cfg.url || "";
       document.getElementById("proxy-token-input").value = cfg.token || "";
       updateProxyStatusBox((cfg.url || cfg.anthropic_key) ? "saved" : "empty");
+      var geminiBox = document.getElementById("gemini-status-box");
+      if (geminiBox) {
+        if (cfg.gemini_key) { geminiBox.style.display = "block"; geminiBox.style.background = "#dcfce7"; geminiBox.style.color = "#166534"; geminiBox.innerHTML = "✅ Gemini configurado — extracción IA gratuita activa"; }
+        else { geminiBox.style.display = "none"; }
+      }
       document.getElementById("config-modal").style.display = "flex";
       refreshDebugPanel();
     }
@@ -7609,7 +7658,28 @@
       return result;
     }
 
-    function hasAIConfig() { return !!(getProxyUrl() || getAnthropicKey()); }
+    function hasAIConfig() { return !!(getProxyUrl() || getAnthropicKey() || getGeminiKey()); }
+
+    // ── Parse JSON response from any AI (Anthropic or Gemini) ──
+    function parseAIJsonResponse(txt) {
+      try {
+        const clean = txt.replace(/```[a-z]*/gi, "").replace(/```/g, "").trim();
+        return JSON.parse(clean);
+      } catch (_e1) {
+        try {
+          const start = txt.indexOf("{");
+          const end = txt.lastIndexOf("}");
+          if (start !== -1 && end > start) return JSON.parse(txt.slice(start, end + 1));
+        } catch (_e2) {
+          try {
+            const fallback = {};
+            for (const [, fk, fv] of txt.matchAll(/"([a-z_]+)"\s*:\s*"([^"]*)"/g)) fallback[fk] = fv;
+            if (Object.keys(fallback).length > 0) return fallback;
+          } catch (_e3) { /* leave as {} */ }
+        }
+      }
+      return {};
+    }
 
     // ─── LOCAL QUICK RECOMMENDATIONS ───────────────────────────────────────────────
     const LAB_QUICK = {
@@ -8516,76 +8586,65 @@ Si no hay alteraciones: {"alteraciones":[],"resumen":"...","prioridad":"baja"}`;
       try {
         let extracted = {};
 
-        if (hasAIConfig()) {
-          // ── Ruta IA: leer archivo y enviar a Claude ──────────────────────
-          let base64;
-          if (isImage && fileMB > 1.5) {
-            base64 = await new Promise((res, rej) => {
-              const img = new Image();
-              const objUrl = URL.createObjectURL(file);
-              img.onload = () => {
-                URL.revokeObjectURL(objUrl);
-                const MAX_DIM = 1400;
-                let w = img.naturalWidth, h = img.naturalHeight;
-                if (w > MAX_DIM || h > MAX_DIM) {
-                  const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
-                  w = Math.round(w * ratio); h = Math.round(h * ratio);
-                }
-                const canvas = document.createElement("canvas");
-                canvas.width = w; canvas.height = h;
-                canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-                const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
-                res(dataUrl.split(",")[1]);
-              };
-              img.onerror = rej;
-              img.src = objUrl;
-            });
-          } else {
-            base64 = await new Promise((res, rej) => {
-              const r = new FileReader();
-              r.onload = () => res(r.result.split(",")[1]);
-              r.onerror = rej; r.readAsDataURL(file);
-            });
-          }
+        // ── Leer archivo a base64 ──────────────────────────────────────
+        let base64;
+        if (isImage && fileMB > 1.5) {
+          base64 = await new Promise((res, rej) => {
+            const img = new Image();
+            const objUrl = URL.createObjectURL(file);
+            img.onload = () => {
+              URL.revokeObjectURL(objUrl);
+              const MAX_DIM = 1400;
+              let w = img.naturalWidth, h = img.naturalHeight;
+              if (w > MAX_DIM || h > MAX_DIM) {
+                const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+                w = Math.round(w * ratio); h = Math.round(h * ratio);
+              }
+              const canvas = document.createElement("canvas");
+              canvas.width = w; canvas.height = h;
+              canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+              const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
+              res(dataUrl.split(",")[1]);
+            };
+            img.onerror = rej;
+            img.src = objUrl;
+          });
+        } else {
+          base64 = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result.split(",")[1]);
+            r.onerror = rej; r.readAsDataURL(file);
+          });
+        }
 
+        const useAnthropic = !!(getProxyUrl() || getAnthropicKey());
+        const useGemini = !!getGeminiKey();
+        const promptText = buildSingleLabExtractionPrompt(isImage);
+
+        if (useAnthropic) {
+          // ── Ruta Anthropic (prioritaria) ──────────────────────────────
           const mediaType = isImage ? "image/jpeg" : "application/pdf";
           const contentBlock = isImage
             ? { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } }
             : { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } };
-
           const data = await callAI({
             model: "claude-sonnet-4-20250514",
             max_tokens: 4000,
-            messages: [{
-              role: "user", content: [
-                contentBlock,
-                { type: "text", text: buildSingleLabExtractionPrompt(isImage) }
-              ]
-            }]
+            messages: [{ role: "user", content: [contentBlock, { type: "text", text: promptText }] }]
           });
           const txt = data.content?.[0]?.text || "{}";
-          try {
-            const clean = txt.replace(/```[a-z]*/gi, "").replace(/```/g, "").trim();
-            extracted = JSON.parse(clean);
-          } catch (_e1) {
-            try {
-              const start = txt.indexOf("{");
-              const end = txt.lastIndexOf("}");
-              if (start !== -1 && end > start) extracted = JSON.parse(txt.slice(start, end + 1));
-            } catch (_e2) {
-              try {
-                const fallback = {};
-                for (const [, fk, fv] of txt.matchAll(/"([a-z_]+)"\s*:\s*"([^"]*)"/g)) fallback[fk] = fv;
-                if (Object.keys(fallback).length > 0) extracted = fallback;
-              } catch (_e3) { /* leave as {} */ }
-            }
-          }
+          extracted = parseAIJsonResponse(txt);
+        } else if (useGemini) {
+          // ── Ruta Gemini (gratis) ──────────────────────────────────────
+          const mimeType = isImage ? "image/jpeg" : "application/pdf";
+          const txt = await callGemini(base64, mimeType, promptText);
+          extracted = parseAIJsonResponse(txt);
         } else if (!isImage) {
-          // ── Ruta LOCAL: extraer texto con pdf.js y parsear con regex ──────
+          // ── Ruta LOCAL: extraer texto con pdf.js y parsear con regex ──
           const pdfText = await extractPdfTextLocal(file);
           extracted = parseLabsFromText(pdfText);
         } else {
-          alert("Para imágenes se requiere configurar API Key de Anthropic en Config. PDFs se procesan localmente.");
+          alert("Para imágenes se requiere configurar API Key (Gemini o Anthropic) en Config. PDFs se procesan localmente.");
           labLoadingSet.delete(k);
           if (pdfBtn) { pdfBtn.disabled = false; pdfBtn.textContent = "📄 PDF"; pdfBtn.style.background = ""; }
           return;
@@ -11479,39 +11538,37 @@ Si no hay alteraciones: {"alteraciones":[],"resumen":"...","prioridad":"baja"}`;
       }
 
       function processFile(file) {
-        if (hasAIConfig()) {
-          // Ruta IA
+        var useAnthropic = !!(getProxyUrl() || getAnthropicKey());
+        var useGemini = !!getGeminiKey();
+
+        if (useAnthropic || useGemini) {
+          // Ruta IA (Anthropic prioritario, Gemini como fallback gratuito)
           return new Promise(function(resolve) {
             var r = new FileReader();
             r.onerror = function(){ resolve({ file: file.name, extracted: null, error: "Error leyendo archivo" }); };
             r.onload = function() {
               var base64 = r.result.split(",")[1];
               var prompt = buildBulkLabExtractionPrompt();
-              callAI({
-                model: "claude-sonnet-4-20250514",
-                max_tokens: 4000,
-                messages: [{ role: "user", content: [
-                  { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
-                  { type: "text", text: prompt }
-                ]}]
-              })
-              .then(function(data) {
-                var txt = (data.content && data.content[0] && data.content[0].text) || "{}";
-                var extracted = {};
-                try {
-                  var clean2 = txt.replace(/```[a-z]*/gi,"").replace(/```/g,"").trim();
-                  extracted = JSON.parse(clean2);
-                } catch(_p1) {
-                  try {
-                    var s2 = txt.indexOf("{"), e2 = txt.lastIndexOf("}");
-                    if (s2 !== -1 && e2 > s2) extracted = JSON.parse(txt.slice(s2, e2+1));
-                  } catch(_p2) {
-                    var fb = {};
-                    var rx = /"([a-z_]+)"\s*:\s*"([^"]*)"/g, m2;
-                    while ((m2 = rx.exec(txt)) !== null) fb[m2[1]] = m2[2];
-                    if (Object.keys(fb).length > 0) extracted = fb;
-                  }
-                }
+
+              var aiPromise;
+              if (useAnthropic) {
+                aiPromise = callAI({
+                  model: "claude-sonnet-4-20250514",
+                  max_tokens: 4000,
+                  messages: [{ role: "user", content: [
+                    { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
+                    { type: "text", text: prompt }
+                  ]}]
+                }).then(function(data) {
+                  return (data.content && data.content[0] && data.content[0].text) || "{}";
+                });
+              } else {
+                aiPromise = callGemini(base64, "application/pdf", prompt);
+              }
+
+              aiPromise
+              .then(function(txt) {
+                var extracted = parseAIJsonResponse(txt);
                 resolve({ file: file.name, fileObj: file, fileBase64: base64, extracted: extracted, error: null });
               })
               .catch(function(e){ resolve({ file: file.name, extracted: null, error: String(e) }); });
