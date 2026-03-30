@@ -2598,6 +2598,8 @@
         </div>
         <button style="background:#0e7490;border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;font-family:var(--font)"
           onclick="openBulkLabsModal()" title="Subir varios PDFs de labs y auto-asignar a pacientes">📦 Labs Masivo</button>
+        <button style="background:#7c3aed;border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;font-family:var(--font)"
+          onclick="openBulkLabsTextModal()" title="Pegar texto de labs para varios pacientes">📝 Labs Texto</button>
         <div class="quick-access-group">
           <button class="qa-btn qa-img" onclick="openSystem('img')" title="Abrir Imagen">🩻 Imagen</button>
           <button class="qa-cfg" onclick="openSystemConfig('img')" title="Configurar credenciales">⚙</button>
@@ -3478,6 +3480,7 @@
         cultivos: [],
         notas_evolucion: [],
         neuro_exam: {},
+        pendientes_items: [],
         tac_control: false, tac_control_requested: false,
         checklist: { ncx_ingreso: false, ncx_subrogado: false, ncx_adscrito_cargo: "",
           npo: false, npo_dias: "", atb: false, atb_nombre: "", atb_dias: "", atb_fecha_inicio: "", tvp: false, tvp_tipo: "", tvp_dosis: "", tvp_otro: "", dieta: "", dren: false, cur_necesita: false, cur_realizada: false, npt: false, npt_pct: "", npt_fecha: "", sexo: "", pendientes_mips: "", pendientes_r1: "",
@@ -3755,6 +3758,7 @@
     // - Limita labHistory a las 30 entradas más recientes para evitar desbordamiento.
     function _lsNoteCopy(data) {
       const d = Object.assign({}, data);
+      // Strip large base64 from lab history
       if (Array.isArray(d.labHistory)) {
         d.labHistory = d.labHistory
           .slice()
@@ -3766,6 +3770,18 @@
             sc.source_file = "";
             return sc;
           });
+      }
+      // Strip inline base64 from CVC if it was uploaded to Storage (URL starts with http)
+      if (d.cvc_image && d.cvc_image.length > 500 && !d.cvc_image.startsWith("http")) {
+        // Keep base64 locally but truncate for localStorage savings — it's in Supabase Storage
+        // Actually keep it for offline viewing, but limit size
+      }
+      // Strip base64 data from drainage screenshots that have a URL
+      if (Array.isArray(d.drainageScreenshots)) {
+        d.drainageScreenshots = d.drainageScreenshots.map(function(ss) {
+          if (ss.url && ss.data) { var sc = Object.assign({}, ss); sc.data = ""; return sc; }
+          return ss;
+        });
       }
       return d;
     }
@@ -4021,6 +4037,58 @@
       }
       return null;
     }
+    // ── General image upload to Supabase Storage ──
+    const IMG_STORAGE_BUCKET = "patient-images";
+    var _imgBucketChecked = false;
+    async function ensureImageBucket() {
+      if (_imgBucketChecked || !_supa || !_supa.storage) return;
+      _imgBucketChecked = true;
+      try {
+        await _supa.storage.createBucket(IMG_STORAGE_BUCKET, { public: true, fileSizeLimit: 10485760 });
+      } catch (e) { /* bucket may already exist — ignore */ }
+    }
+    async function uploadImageToStorage(k, category, file) {
+      await ensureImageBucket();
+      if (!file || !_supa || !_supa.storage) return null;
+      var p = patients.find(function(pt){ return pid(pt) === k; });
+      var patientPart = sanitizeStoragePathSegment((p && (p._supa_id || p.exp || p.nombre)) || k);
+      var ext = (file.name || "").match(/(\.[A-Za-z0-9]+)$/) ? RegExp.$1.toLowerCase() : ".jpg";
+      var objectPath = patientPart + "/" + category + "/" + Date.now() + ext;
+      try {
+        var resp = await _supa.storage.from(IMG_STORAGE_BUCKET).upload(objectPath, file, {
+          upsert: true, contentType: file.type || "image/jpeg", cacheControl: "3600"
+        });
+        if (resp.error) throw resp.error;
+        var pubUrl = _supa.storage.from(IMG_STORAGE_BUCKET).getPublicUrl((resp.data && resp.data.path) || objectPath);
+        return (pubUrl && pubUrl.data && pubUrl.data.publicUrl) || null;
+      } catch (e) {
+        safeWarn("Storage image upload fallback:", e);
+        return null;
+      }
+    }
+    async function uploadBase64ToStorage(k, category, base64, mimeType) {
+      if (!base64 || !_supa || !_supa.storage) return null;
+      var p = patients.find(function(pt){ return pid(pt) === k; });
+      var patientPart = sanitizeStoragePathSegment((p && (p._supa_id || p.exp || p.nombre)) || k);
+      var ext = (mimeType || "").indexOf("png") >= 0 ? ".png" : ".jpg";
+      var objectPath = patientPart + "/" + category + "/" + Date.now() + ext;
+      try {
+        var binary = atob(base64);
+        var arr = new Uint8Array(binary.length);
+        for (var i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
+        var blob = new Blob([arr], { type: mimeType || "image/jpeg" });
+        var resp = await _supa.storage.from(IMG_STORAGE_BUCKET).upload(objectPath, blob, {
+          upsert: true, contentType: mimeType || "image/jpeg", cacheControl: "3600"
+        });
+        if (resp.error) throw resp.error;
+        var pubUrl = _supa.storage.from(IMG_STORAGE_BUCKET).getPublicUrl((resp.data && resp.data.path) || objectPath);
+        return (pubUrl && pubUrl.data && pubUrl.data.publicUrl) || null;
+      } catch (e) {
+        safeWarn("Storage base64 upload fallback:", e);
+        return null;
+      }
+    }
+
     async function attachLabSourceToSnap(k, fecha, snap, file, base64Fallback) {
       const prevBucket = snap.source_storage_bucket || "";
       const prevPath = snap.source_storage_path || "";
@@ -4249,13 +4317,40 @@
     // ─── SUPABASE: SAVE NOTE ────────────────────────────────────────────────────────
     async function supaUpsertNote(patientId, nd) {
       if (!patientId) return null;
+      // Strip large base64 from lab_history before sync
+      var cleanLabHistory = (nd.labHistory || []).map(function(s) {
+        if (!s.source_file) return s;
+        var sc = Object.assign({}, s); sc.source_file = ""; return sc;
+      });
+      // Strip base64 from drainage screenshots that have URLs
+      var cleanDrainageScreenshots = (nd.drainageScreenshots || []).map(function(ss) {
+        if (ss.url && ss.data) { var sc = Object.assign({}, ss); sc.data = ""; return sc; }
+        return ss;
+      });
+      // Strip base64 CVC if it's a URL (uploaded to storage)
+      var cleanCvcImage = (nd.cvc_image && nd.cvc_image.startsWith("http")) ? nd.cvc_image : "";
+      var ckSync = buildChecklistForSync(nd);
+      // Store pendientes_items and other new fields in checklist meta for sync
+      ckSync.__pl_pendientes_items = nd.pendientes_items || [];
+      ckSync.__pl_cultivos = nd.cultivos || [];
+      ckSync.__pl_notas_evolucion = nd.notas_evolucion || [];
+      ckSync.__pl_neuro_exam = nd.neuro_exam || {};
+      ckSync.__pl_ventilador = nd.ventilador || {};
+      ckSync.__pl_medicamentos = nd.medicamentos || {};
+      ckSync.__pl_pupilas = nd.pupilas || {};
+      ckSync.__pl_qx_procedimientos = nd.qx_procedimientos || [];
+      ckSync.__pl_gasometrias = nd.gasometrias || [];
+      ckSync.__pl_drainage_screenshots = cleanDrainageScreenshots;
+      ckSync.__pl_cvc_image = cleanCvcImage;
+      ckSync.__pl_tac_control = nd.tac_control || false;
+      ckSync.__pl_tac_control_requested = nd.tac_control_requested || false;
       const row = {
         patient_id: patientId,
         app: nd.app || "", pa: nd.pa || "", drenajes: nd.drenajes || "", qx: nd.qx || "",
         manejo: nd.manejo || "", sangrado: nd.sangrado || "", sv: nd.sv || "",
         balance: nd.balance || "", pendientes: nd.pendientes || "", misc: nd.misc || "",
-        checklist: buildChecklistForSync(nd),
-        lab_history: nd.labHistory || [],
+        checklist: ckSync,
+        lab_history: cleanLabHistory,
         imagen_history: nd.imagenHistory || [],
         updated_by: localStorage.getItem("pl_user_name") || ""
       };
@@ -4340,9 +4435,24 @@
             nd.sv = sn.sv || ""; nd.balance = sn.balance || ""; nd.pendientes = sn.pendientes || "";
             nd.misc = sn.misc || "";
             if (sn.entrega !== undefined) nd.entrega = sn.entrega || nd.entrega || "";
-            nd.checklist = { ...(nd.checklist || {}), ...(isPlainObject(sn.checklist) ? sn.checklist : {}) };
+            const remoteCk = isPlainObject(sn.checklist) ? sn.checklist : {};
+            nd.checklist = { ...(nd.checklist || {}), ...remoteCk };
             nd.labHistory = Array.isArray(sn.lab_history) ? sn.lab_history : (nd.labHistory || []);
             nd.imagenHistory = Array.isArray(sn.imagen_history) ? sn.imagen_history : (nd.imagenHistory || []);
+            // Extract synced extended fields from checklist meta
+            if (remoteCk.__pl_pendientes_items) nd.pendientes_items = remoteCk.__pl_pendientes_items;
+            if (remoteCk.__pl_cultivos) nd.cultivos = remoteCk.__pl_cultivos;
+            if (remoteCk.__pl_notas_evolucion) nd.notas_evolucion = remoteCk.__pl_notas_evolucion;
+            if (remoteCk.__pl_neuro_exam) nd.neuro_exam = remoteCk.__pl_neuro_exam;
+            if (remoteCk.__pl_ventilador) nd.ventilador = remoteCk.__pl_ventilador;
+            if (remoteCk.__pl_medicamentos) nd.medicamentos = remoteCk.__pl_medicamentos;
+            if (remoteCk.__pl_pupilas) nd.pupilas = remoteCk.__pl_pupilas;
+            if (remoteCk.__pl_qx_procedimientos) nd.qx_procedimientos = remoteCk.__pl_qx_procedimientos;
+            if (remoteCk.__pl_gasometrias) nd.gasometrias = remoteCk.__pl_gasometrias;
+            if (remoteCk.__pl_drainage_screenshots) nd.drainageScreenshots = remoteCk.__pl_drainage_screenshots;
+            if (remoteCk.__pl_cvc_image) nd.cvc_image = remoteCk.__pl_cvc_image;
+            if (remoteCk.__pl_tac_control !== undefined) nd.tac_control = remoteCk.__pl_tac_control;
+            if (remoteCk.__pl_tac_control_requested !== undefined) nd.tac_control_requested = remoteCk.__pl_tac_control_requested;
             loadedNotes[k] = migrateNote(nd);
           } else {
             loadedNotes[k] = localNote;
@@ -4773,6 +4883,20 @@
         nd.body_diagram_lat_l = remoteMeta.body_diagram_lat_l;
         nd.body_diagram_lat_r = remoteMeta.body_diagram_lat_r;
       }
+      // Extract new fields from checklist sync meta
+      if (remoteChecklist.__pl_pendientes_items) nd.pendientes_items = remoteChecklist.__pl_pendientes_items;
+      if (remoteChecklist.__pl_cultivos) nd.cultivos = remoteChecklist.__pl_cultivos;
+      if (remoteChecklist.__pl_notas_evolucion) nd.notas_evolucion = remoteChecklist.__pl_notas_evolucion;
+      if (remoteChecklist.__pl_neuro_exam) nd.neuro_exam = remoteChecklist.__pl_neuro_exam;
+      if (remoteChecklist.__pl_ventilador) nd.ventilador = remoteChecklist.__pl_ventilador;
+      if (remoteChecklist.__pl_medicamentos) nd.medicamentos = remoteChecklist.__pl_medicamentos;
+      if (remoteChecklist.__pl_pupilas) nd.pupilas = remoteChecklist.__pl_pupilas;
+      if (remoteChecklist.__pl_qx_procedimientos) nd.qx_procedimientos = remoteChecklist.__pl_qx_procedimientos;
+      if (remoteChecklist.__pl_gasometrias) nd.gasometrias = remoteChecklist.__pl_gasometrias;
+      if (remoteChecklist.__pl_drainage_screenshots) nd.drainageScreenshots = remoteChecklist.__pl_drainage_screenshots;
+      if (remoteChecklist.__pl_cvc_image) nd.cvc_image = remoteChecklist.__pl_cvc_image;
+      if (remoteChecklist.__pl_tac_control !== undefined) nd.tac_control = remoteChecklist.__pl_tac_control;
+      if (remoteChecklist.__pl_tac_control_requested !== undefined) nd.tac_control_requested = remoteChecklist.__pl_tac_control_requested;
       // BUG-C2/C3 FIX: preserve local labHistory / imagenHistory if the user is
       // actively editing them (dirty flag set by liveLabUpdate / imagen updates).
       if (!dirty.has("labHistory")) {
@@ -5906,11 +6030,32 @@
       ).join("");
     }
 
+    // ── Collapsible section wrapper for card sections ──
+    var collapsedSections = JSON.parse(localStorage.getItem('pl_collapsed_sections') || '{}');
+    function toggleSection(secId) {
+      collapsedSections[secId] = !collapsedSections[secId];
+      localStorage.setItem('pl_collapsed_sections', JSON.stringify(collapsedSections));
+      var body = document.getElementById(secId);
+      var arrow = document.getElementById(secId + '-arrow');
+      if (body) body.style.display = collapsedSections[secId] ? 'none' : '';
+      if (arrow) arrow.textContent = collapsedSections[secId] ? '▸' : '▾';
+    }
+    function collapsibleSection(title, secId, content, defaultOpen) {
+      if (!content || content.trim() === '') return '';
+      var isOpen = defaultOpen !== false && !collapsedSections[secId];
+      return '<div style="margin-top:8px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">' +
+        '<div onclick="toggleSection(\'' + secId + '\')" style="cursor:pointer;padding:6px 12px;background:#f8fafc;display:flex;align-items:center;gap:6px;user-select:none">' +
+        '<span id="' + secId + '-arrow" style="font-size:11px;color:#64748b">' + (isOpen ? '▾' : '▸') + '</span>' +
+        '<span style="font-size:12px;font-weight:700;color:#334155">' + title + '</span></div>' +
+        '<div id="' + secId + '" style="display:' + (isOpen ? '' : 'none') + ';padding:8px 12px">' + content + '</div></div>';
+    }
+
     function renderFullCard(p, nd, k) {
       const ec = ESP_COLORS[p.esp] || "#333333";
       const sc = ESTADO_COLORS[p.estado] || "#95a5a6";
       const days = daysSince(p.ingreso);
       const exp = expandedCards[k] !== false;
+      const ek = k.replace(/[^a-zA-Z0-9_-]/g, '_');
       const noEnCenso = p._noEnCenso || nd._noEnCenso;
       const alerts = computeAlerts(p, nd);
       const esIngreso = isRecentIngreso(p.ingreso, 1);
@@ -5944,57 +6089,24 @@
         ⚠️ <strong>Este paciente no aparece en el último censo importado.</strong> Puede haber tenido alta, defunción o traslado. Usa el botón 🚪 para retirar del censo o edita para actualizar sus datos.
       </div>`: ''}
       ${fieldRow("🔴 DX", nd.dx || p.dx, k, "dx", 3)}
-      <div class="grid-2">
-        ${fieldRow("📋 APP", nd.app, k, "app", 3)}
-        ${fieldRow("🩺 PA", nd.pa, k, "pa", 3)}
-      </div>
-      <div class="grid-2">
-        ${renderQxSection(nd, k)}
-        ${fieldRow("💉 Indicaciones", nd.manejo, k, "manejo", 3)}
-      </div>
+      ${collapsibleSection('📋 Antecedentes / Padecimiento', 'sec-app-'+ek, '<div class="grid-2">' + fieldRow("📋 APP", nd.app, k, "app", 3) + fieldRow("🩺 PA", nd.pa, k, "pa", 3) + '</div>')}
+      ${collapsibleSection('🔪 QX / Indicaciones', 'sec-qx-'+ek, '<div class="grid-2">' + renderQxSection(nd, k) + fieldRow("💉 Indicaciones", nd.manejo, k, "manejo", 3) + '</div>')}
       <!-- Drenajes, Sangrado, Balance removidos -->
       ${renderImagenField(nd, k)}
       ${renderChecklist(nd, k)}
-      <div style="margin-top:10px">${fieldRow("⚠️ Pendientes / Plan", nd.pendientes, k, "pendientes", 3)}</div>
-      <div class="grid-2" style="margin-top:10px">
-        <div>
-          <div class="field-label">📋 Pendientes Rotantes</div>
-          <textarea class="field-ta" rows="3"
-            data-key="${k}" data-ckfield="pendientes_mips"
-            inputmode="text" autocorrect="off" autocapitalize="sentences" spellcheck="false"
-            oninput="liveCkText(this)"
-            onchange="updateCkText(this.dataset.key,'pendientes_mips',this.value)"
-            placeholder="Tareas pendientes para rotantes...">${esc((nd.checklist && nd.checklist.pendientes_mips) || "")}</textarea>
-        </div>
-        <div>
-          <div class="field-label">📋 Pendientes R1</div>
-          <textarea class="field-ta" rows="3"
-            data-key="${k}" data-ckfield="pendientes_r1"
-            inputmode="text" autocorrect="off" autocapitalize="sentences" spellcheck="false"
-            oninput="liveCkText(this)"
-            onchange="updateCkText(this.dataset.key,'pendientes_r1',this.value)"
-            placeholder="Tareas pendientes para R1...">${esc((nd.checklist && nd.checklist.pendientes_r1) || "")}</textarea>
-        </div>
-      </div>
-      <div class="entrega-row" style="margin-top:10px">
-        ${fieldRow("📋 Entrega de guardia", nd.entrega, k, "entrega", 3)}
-        ${(function() {
-          const cruceText = getCruceEntregaText(nd.checklist);
-          return cruceText ? `<div style="font-size:10px;color:#dc2626;font-weight:600;margin-top:3px;padding:3px 6px;background:#fef2f2;border-radius:4px;border-left:3px solid #dc2626">${esc(cruceText)}</div>` : "";
-        })()}
-      </div>
-      <div style="margin-top:10px">${fieldRow("📝 Misceláneos", nd.misc, k, "misc", 2)}</div>
-      ${renderPupilas(nd, k)}
-      ${renderVentilador(nd, k)}
+      ${collapsibleSection('⚠️ Pendientes', 'sec-pend-'+ek, renderPendientesStructured(nd, k), true)}
+      ${collapsibleSection('📋 Entrega de guardia', 'sec-entrega-'+ek, fieldRow("📋 Entrega", nd.entrega, k, "entrega", 3) + (function() { const cruceText = getCruceEntregaText(nd.checklist); return cruceText ? '<div style="font-size:10px;color:#dc2626;font-weight:600;margin-top:3px;padding:3px 6px;background:#fef2f2;border-radius:4px;border-left:3px solid #dc2626">' + esc(cruceText) + '</div>' : ""; })())}
+      ${collapsibleSection('📝 Misceláneos', 'sec-misc-'+ek, fieldRow("📝 Misceláneos", nd.misc, k, "misc", 2))}
+      ${collapsibleSection('👁 Pupilas / Neuro', 'sec-pupilas-'+ek, renderPupilas(nd, k))}
       ${renderTacControl(nd, k)}
-      ${renderMedicamentos(nd, k)}
-      ${renderCultivos(nd, k)}
-      ${renderNeuroExam(nd, k, p)}
-      ${renderBodyDiagram(nd, k)}
-      ${renderCvcVault(nd, k)}
-      ${renderDocumentVault(nd, k)}
-      ${renderDrainageScreenshots(nd, k)}
-      ${renderDicomViewer(nd, k)}
+      ${collapsibleSection('💊 Medicamentos', 'sec-meds-'+ek, renderMedicamentos(nd, k))}
+      ${collapsibleSection('🦠 Cultivos', 'sec-cultivos-'+ek, renderCultivos(nd, k))}
+      ${collapsibleSection('🧠 Examen Neurológico', 'sec-neuro-'+ek, renderNeuroExam(nd, k, p))}
+      ${collapsibleSection('🫀 Diagrama Corporal', 'sec-body-'+ek, renderBodyDiagram(nd, k), false)}
+      ${collapsibleSection('🩹 CVC', 'sec-cvc-'+ek, renderCvcVault(nd, k), false)}
+      ${collapsibleSection('📁 Documentos', 'sec-docs-'+ek, renderDocumentVault(nd, k), false)}
+      ${collapsibleSection('📸 Drenajes', 'sec-drain-'+ek, renderDrainageScreenshots(nd, k), false)}
+      ${collapsibleSection('🖥 DICOM', 'sec-dicom-'+ek, renderDicomViewer(nd, k), false)}
       ${renderLabSection(nd, k)}
       <div style="margin-top:8px">
         <button class="card-note-btn" style="background:#0891b2;color:#fff;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:none" data-gk="${k}" onclick="openGasometrias(this.dataset.gk)">🫁 Gasometrías</button>
@@ -6134,18 +6246,24 @@
         </div>
       </div>`;
     }
-    function uploadCvcImage(k, input) {
+    async function uploadCvcImage(k, input) {
       const file = input.files && input.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const nd = noteData[k] || defaultData();
-        nd.cvc_image = e.target.result;
-        noteData[k] = nd;
-        saveNote(k, nd);
-        renderView();
-      };
-      reader.readAsDataURL(file);
+      const nd = getNote(k);
+      // Try uploading to Supabase Storage first
+      const url = await uploadImageToStorage(k, "cvc", file);
+      if (url) {
+        nd.cvc_image = url;
+      } else {
+        // Fallback to base64 (works offline but won't sync well)
+        const b64 = await new Promise(function(res) {
+          var r = new FileReader(); r.onload = function(e){ res(e.target.result); }; r.readAsDataURL(file);
+        });
+        nd.cvc_image = b64;
+      }
+      noteData[k] = nd;
+      saveNote(k, nd);
+      renderView();
     }
     function removeCvcImage(k) {
       const nd = noteData[k] || defaultData();
@@ -6451,21 +6569,8 @@
     }
 
     // ─── VENTILADOR SECTION ──────────────────────────────────────────────────────
-    function renderVentilador(nd, k) {
-      const v = nd.ventilador || {};
-      const ek = k.replace(/[^a-zA-Z0-9_-]/g, '_');
-      function vInp(field, label, w) {
-        return `<div class="pm-field"><span class="pm-label">${label}</span><input class="pm-input" value="${esc(v[field] || '')}" placeholder="—" data-key="${k}" data-vfield="${field}" oninput="updateVent(this.dataset.key,this.dataset.vfield,this.value)"${w ? ' style="width:' + w + '"' : ''}/></div>`;
-      }
-      return `<div style="margin-top:10px;padding:8px 12px;border:1px solid #7dd3fc;border-radius:8px;background:#f0f9ff">
-        <div class="field-label" style="color:#0369a1;cursor:pointer" onclick="document.getElementById('vent-sec-${ek}').style.display=document.getElementById('vent-sec-${ek}').style.display==='none'?'flex':'none'">🫁 Ventilador — Parámetros <span style="font-size:9px;color:#64748b">▼</span></div>
-        <div id="vent-sec-${ek}" style="display:${Object.values(v).some(x=>x)?'flex':'none'};flex-wrap:wrap;gap:6px;margin-top:6px">
-          ${vInp('modo','Modo','70px')} ${vInp('fio2','FiO₂%')} ${vInp('peep','PEEP')} ${vInp('vt','VT mL')}
-          ${vInp('fr','FR')} ${vInp('pip','PIP')} ${vInp('ps','PS')} ${vInp('driving_p','ΔP')}
-          ${vInp('compliance','Compliance','70px')} ${vInp('sato2','SatO₂%')}
-        </div>
-      </div>`;
-    }
+    // Ventilador section removed — VM parameters are in checklist
+    function renderVentilador(nd, k) { return ''; }
     function updateVent(k, field, val) {
       const nd = getNote(k);
       if (!nd.ventilador) nd.ventilador = {};
@@ -6474,6 +6579,52 @@
     }
 
     // ─── PUPILAS SECTION ──────────────────────────────────────────────────────────
+    // ── Structured Pendientes with assignee + checkbox ──
+    function renderPendientesStructured(nd, k) {
+      nd = migrateNote(nd);
+      if (!nd.pendientes_items) nd.pendientes_items = [];
+      var items = nd.pendientes_items;
+      var ek = k.replace(/[^a-zA-Z0-9_-]/g, '_');
+      var html = '<div style="display:flex;flex-direction:column;gap:6px">';
+      items.forEach(function(item, i) {
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:' + (item.done ? '#f0fdf4' : '#fefce8') + ';border:1px solid ' + (item.done ? '#86efac' : '#fde047') + '">' +
+          '<input type="checkbox" ' + (item.done ? 'checked' : '') + ' onchange="togglePendienteItem(\'' + k + '\',' + i + ',this.checked)" style="width:18px;height:18px;accent-color:#16a34a;cursor:pointer;flex-shrink:0"/>' +
+          '<input value="' + esc(item.texto || '') + '" placeholder="Pendiente..." onchange="updatePendienteItem(\'' + k + '\',' + i + ',\'texto\',this.value)" style="flex:1;border:none;background:transparent;font-size:13px;font-family:var(--font);' + (item.done ? 'text-decoration:line-through;color:#6b7280' : 'color:#1e293b') + '"/>' +
+          '<select onchange="updatePendienteItem(\'' + k + '\',' + i + ',\'quien\',this.value)" style="border:1px solid #cbd5e1;border-radius:4px;padding:2px 6px;font-size:11px;font-family:var(--font);background:#fff;min-width:90px">' +
+          '<option value=""' + (!item.quien ? ' selected' : '') + '>Asignar a...</option>' +
+          '<option value="Dr. Ramos"' + (item.quien === 'Dr. Ramos' ? ' selected' : '') + '>Dr. Ramos</option>' +
+          '<option value="Dra. Aguilar"' + (item.quien === 'Dra. Aguilar' ? ' selected' : '') + '>Dra. Aguilar</option>' +
+          '<option value="Dr. Ruiz"' + (item.quien === 'Dr. Ruiz' ? ' selected' : '') + '>Dr. Ruiz</option>' +
+          '<option value="Dr. Moreno"' + (item.quien === 'Dr. Moreno' ? ' selected' : '') + '>Dr. Moreno</option>' +
+          '<option value="Rotante"' + (item.quien === 'Rotante' ? ' selected' : '') + '>Rotante</option>' +
+          '<option value="Enfermería"' + (item.quien === 'Enfermería' ? ' selected' : '') + '>Enfermería</option>' +
+          '</select>' +
+          '<button onclick="removePendienteItem(\'' + k + '\',' + i + ')" style="border:none;background:none;color:#dc2626;cursor:pointer;font-size:14px;padding:2px" title="Eliminar">✕</button>' +
+          '</div>';
+      });
+      html += '<button onclick="addPendienteItem(\'' + k + '\')" style="border:1px dashed #94a3b8;background:#f8fafc;color:#475569;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;font-family:var(--font)">+ Agregar pendiente</button>';
+      html += '</div>';
+      return html;
+    }
+    function addPendienteItem(k) {
+      var nd = getNote(k);
+      if (!nd.pendientes_items) nd.pendientes_items = [];
+      nd.pendientes_items.push({ texto: '', quien: '', done: false });
+      saveNote(k, nd); reRender();
+    }
+    function removePendienteItem(k, i) {
+      var nd = getNote(k);
+      if (nd.pendientes_items) { nd.pendientes_items.splice(i, 1); saveNote(k, nd); reRender(); }
+    }
+    function togglePendienteItem(k, i, checked) {
+      var nd = getNote(k);
+      if (nd.pendientes_items && nd.pendientes_items[i]) { nd.pendientes_items[i].done = checked; saveNote(k, nd); reRender(); }
+    }
+    function updatePendienteItem(k, i, field, val) {
+      var nd = getNote(k);
+      if (nd.pendientes_items && nd.pendientes_items[i]) { nd.pendientes_items[i][field] = val; saveNote(k, nd); }
+    }
+
     function renderPupilas(nd, k) {
       const p = nd.pupilas || {};
       const ek = k.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -6752,9 +6903,11 @@
     function renderDrainageScreenshots(nd, k) {
       const ek = k.replace(/[^a-zA-Z0-9_-]/g, '_');
       const screenshots = (nd.drainageScreenshots) || [];
-      let screenshotHtml = screenshots.map((ss, i) => `
+      let screenshotHtml = screenshots.map((ss, i) => {
+        const imgSrc = ss.url ? ss.url : (ss.data ? "data:" + (ss.type || "image/jpeg") + ";base64," + ss.data : "");
+        return `
         <div style="border:1px solid #e2e8f0;border-radius:6px;padding:6px;background:#fff;position:relative">
-          <img src="data:${ss.type};base64,${ss.data}" style="max-width:100%;max-height:180px;border-radius:4px;display:block;cursor:pointer" onclick="window.open(this.src,'_blank')"/>
+          ${imgSrc ? `<img src="${imgSrc}" style="max-width:100%;max-height:180px;border-radius:4px;display:block;cursor:pointer" onclick="window.open(this.src,'_blank')"/>` : '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:11px">Imagen no disponible</div>'}
           <div style="font-size:10px;color:#475569;margin-top:4px">
             ${ss.aiName ? `<div><b>Nombre:</b> ${esc(ss.aiName)}</div>` : ''}
             ${ss.aiAge ? `<div><b>Edad:</b> ${esc(ss.aiAge)}</div>` : ''}
@@ -6763,7 +6916,7 @@
           <textarea style="width:100%;border:1px solid #e2e8f0;border-radius:4px;padding:4px;font-size:11px;font-family:inherit;margin-top:4px;resize:vertical" rows="1" placeholder="Agregar nota..." onchange="updateDrainageNote('${k}',${i},this.value)">${esc(ss.note || '')}</textarea>
           <button style="position:absolute;top:4px;right:4px;background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer" onclick="removeDrainageScreenshot('${k}',${i})">✕</button>
         </div>
-      `).join('');
+      `; }).join('');
 
       return `<div style="margin-top:12px;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;background:#faf5ff">
         <div class="field-label">\u{1F4F8} Screenshots de Drenajes (AI detecta nombre/edad)</div>
@@ -6779,47 +6932,32 @@
       </div>`;
     }
 
-    function handleDrainageScreenshots(k, input) {
+    async function handleDrainageScreenshots(k, input) {
       const files = Array.from(input.files);
       if (!files.length) return;
       const nd = getNote(k);
       if (!nd.drainageScreenshots) nd.drainageScreenshots = [];
 
-      let processed = 0;
-      files.forEach(file => {
-        if (file.size > 3 * 1024 * 1024) { alert(file.name + " es muy grande (m\u00E1x 3MB)"); processed++; return; }
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const b64 = e.target.result.split(',')[1];
-          const ss = { data: b64, type: file.type, name: file.name, date: new Date().toISOString(), aiName: '', aiAge: '', note: '' };
-          try {
-            const img = new Image();
-            img.onload = function() {
-              const nameMatch = file.name.match(/([A-Z\u00C1\u00C9\u00CD\u00D3\u00DA\u00D1][A-Z\u00C1\u00C9\u00CD\u00D3\u00DA\u00D1A-Z\s]+)/);
-              if (nameMatch) ss.aiName = nameMatch[1].trim();
-              nd.drainageScreenshots.push(ss);
-              processed++;
-              if (processed === files.length) {
-                noteData[k] = nd;
-                saveNote(k, nd);
-                const cardEl = document.getElementById("card-" + k);
-                if (cardEl) { const p = patients.find(x => pid(x) === k); if(p) cardEl.outerHTML = renderFullCard(p, nd, k); }
-              }
-            };
-            img.src = e.target.result;
-          } catch(ex) {
-            nd.drainageScreenshots.push(ss);
-            processed++;
-            if (processed === files.length) {
-              noteData[k] = nd;
-              saveNote(k, nd);
-              const cardEl = document.getElementById("card-" + k);
-              if (cardEl) { const p = patients.find(x => pid(x) === k); if(p) cardEl.outerHTML = renderFullCard(p, nd, k); }
-            }
-          }
-        };
-        reader.readAsDataURL(file);
-      });
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) { alert(file.name + " es muy grande (máx 5MB)"); continue; }
+        const ss = { data: '', url: '', type: file.type, name: file.name, date: new Date().toISOString(), aiName: '', aiAge: '', note: '' };
+        // Try Storage first
+        const url = await uploadImageToStorage(k, "drainage", file);
+        if (url) {
+          ss.url = url;
+        } else {
+          // Fallback base64
+          const b64 = await new Promise(function(res) {
+            var r = new FileReader(); r.onload = function(e){ res(e.target.result.split(',')[1]); }; r.readAsDataURL(file);
+          });
+          ss.data = b64;
+        }
+        nd.drainageScreenshots.push(ss);
+      }
+      noteData[k] = nd;
+      saveNote(k, nd);
+      const cardEl = document.getElementById("card-" + k);
+      if (cardEl) { const p = patients.find(x => pid(x) === k); if(p) cardEl.outerHTML = renderFullCard(p, nd, k); }
     }
 
     function removeDrainageScreenshot(k, idx) {
@@ -11453,6 +11591,113 @@ Si no hay alteraciones: {"alteraciones":[],"resumen":"...","prioridad":"baja"}`;
       t._timer = setTimeout(function(){ t.style.opacity = "0"; }, 4000);
     }
 
+    // ─── BULK LABS TEXT MODAL ─────────────────────────────────────────────────────────
+    function openBulkLabsTextModal() {
+      document.getElementById("bulk-labs-text-modal").style.display = "flex";
+      document.getElementById("bulk-text-progress").style.display = "none";
+      document.getElementById("bulk-text-results").innerHTML = "";
+      document.getElementById("bulk-labs-text-input").value = "";
+    }
+    function closeBulkLabsTextModal() {
+      document.getElementById("bulk-labs-text-modal").style.display = "none";
+    }
+    async function processBulkLabsText() {
+      var text = document.getElementById("bulk-labs-text-input").value.trim();
+      if (!text) { alert("Pega el texto de laboratorios primero."); return; }
+      var prog = document.getElementById("bulk-text-progress");
+      var res = document.getElementById("bulk-text-results");
+      prog.style.display = "block";
+      prog.innerHTML = "<div style='font-size:13px;font-weight:700;color:#7c3aed'>⏳ Procesando texto con IA...</div>";
+      res.innerHTML = "";
+
+      var prompt = buildBulkLabExtractionPrompt() +
+        "\n\nIMPORTANTE: El texto puede contener resultados de VARIOS pacientes. " +
+        "Si detectas varios pacientes, responde con un JSON array: [{...}, {...}]. " +
+        "Si es un solo paciente, responde con un JSON object: {...}. " +
+        "Cada objeto debe tener el campo 'paciente' con el nombre completo.";
+
+      try {
+        var txt;
+        var useAnthropic = !!(getProxyUrl() || getAnthropicKey());
+        var useGemini = !!getGeminiKey();
+        if (useAnthropic) {
+          var data = await callAI({
+            model: "claude-sonnet-4-20250514", max_tokens: 8000,
+            messages: [{ role: "user", content: [{ type: "text", text: prompt + "\n\nTEXTO DE LABORATORIOS:\n" + text }] }]
+          });
+          txt = (data.content && data.content[0] && data.content[0].text) || "{}";
+        } else if (useGemini) {
+          txt = await callGemini(btoa(unescape(encodeURIComponent(text))), "text/plain", prompt + "\n\nTEXTO DE LABORATORIOS:\n" + text);
+        } else {
+          // Local regex fallback
+          var extracted = parseLabsFromText(text);
+          txt = JSON.stringify(extracted);
+        }
+
+        var parsed;
+        try {
+          var clean = txt.replace(/```[a-z]*/gi, "").replace(/```/g, "").trim();
+          parsed = JSON.parse(clean);
+        } catch(_) {
+          var s = txt.indexOf("["), e = txt.lastIndexOf("]");
+          if (s !== -1 && e > s) { try { parsed = JSON.parse(txt.slice(s, e + 1)); } catch(_2) {} }
+          if (!parsed) {
+            s = txt.indexOf("{"); e = txt.lastIndexOf("}");
+            if (s !== -1 && e > s) { try { parsed = JSON.parse(txt.slice(s, e + 1)); } catch(_3) {} }
+          }
+          if (!parsed) parsed = parseAIJsonResponse(txt);
+        }
+
+        if (!Array.isArray(parsed)) parsed = [parsed];
+
+        // Match and assign
+        function normName(s) {
+          return toSafeString(s).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, " ").replace(/\s+/g, " ").trim();
+        }
+        var successCount = 0;
+        var rows = "";
+        for (var i = 0; i < parsed.length; i++) {
+          var ex = sanitizeExtractedLabs(parsed[i]);
+          var extractedName = ex.paciente || "";
+          // Match patient
+          var matched = null;
+          if (extractedName) {
+            var en = normName(extractedName);
+            var enTokens = en.split(" ").filter(function(t){ return t.length > 2; });
+            var best = null, bestScore = 0;
+            patients.forEach(function(p) {
+              var pTokens = normName(p.nombre).split(" ").filter(function(t){ return t.length > 1; });
+              var common = enTokens.filter(function(t){ return pTokens.indexOf(t) >= 0; });
+              var score = common.length / Math.max(enTokens.length, 1);
+              if (common.length >= 2 && score > bestScore) { best = p; bestScore = score; }
+            });
+            if (best && bestScore >= 0.4) matched = best;
+          }
+          if (matched) {
+            var k = pid(matched);
+            var nd = getNote(k);
+            var fecha = ex.fecha_labs || todayStr();
+            var snap = nd.labHistory.find(function(s){ return s.fecha === fecha; });
+            if (!snap) { snap = { fecha: fecha, labs: {}, extra: [] }; nd.labHistory.push(snap); }
+            var labsFromExtract = Object.assign({}, ex);
+            delete labsFromExtract.tipo_lab; delete labsFromExtract.paciente; delete labsFromExtract.fecha_labs;
+            snap.labs = mergeLabsPerAnalyte(snap.labs, labsFromExtract);
+            nd.labHistory.sort(function(a, b){ return (b.fecha || "").localeCompare(a.fecha || ""); });
+            saveNote(k, nd);
+            successCount++;
+            rows += "<div style='padding:6px 10px;border-radius:6px;background:#f0fdf4;border:1px solid #86efac;margin-bottom:4px;font-size:12px'>✅ <b>" + esc(matched.cama) + "</b> " + esc(matched.nombre) + " — " + esc(fecha) + "</div>";
+          } else {
+            rows += "<div style='padding:6px 10px;border-radius:6px;background:#fef2f2;border:1px solid #fecaca;margin-bottom:4px;font-size:12px'>⚠️ No encontrado: <b>" + esc(extractedName || "(sin nombre)") + "</b></div>";
+          }
+        }
+        prog.innerHTML = "<div style='font-size:13px;font-weight:700;color:#16a34a'>✅ " + successCount + " de " + parsed.length + " paciente(s) actualizados</div>";
+        res.innerHTML = rows;
+        renderView();
+      } catch (err) {
+        prog.innerHTML = "<div style='font-size:13px;font-weight:700;color:#dc2626'>❌ Error: " + esc(String(err)) + "</div>";
+      }
+    }
+
     // ─── BULK LABS MODAL ──────────────────────────────────────────────────────────────
     function openBulkLabsModal() {
       document.getElementById("bulk-labs-modal").style.display = "flex";
@@ -13255,9 +13500,8 @@ ${nd.pendientes.trim()}` : "⚠️ Plan: (sin registrar)",
       const hasPending = pts.filter(p => {
         const k = pid(p);
         const nd = migrateNote(noteData[k] || defaultData());
-        return (nd.pendientes && nd.pendientes.trim()) ||
-               (nd.checklist && nd.checklist.pendientes_mips && nd.checklist.pendientes_mips.trim()) ||
-               (nd.checklist && nd.checklist.pendientes_r1 && nd.checklist.pendientes_r1.trim());
+        const items = nd.pendientes_items || [];
+        return items.some(it => !it.done);
       });
       if (!pts.length) {
         el.innerHTML = `<div style="padding:40px;text-align:center;color:#94a3b8;font-size:15px">Sin pacientes</div>`;
@@ -13265,41 +13509,35 @@ ${nd.pendientes.trim()}` : "⚠️ Plan: (sin registrar)",
       }
       let html = `<div style="padding:12px 16px">
         <div style="font-size:13px;color:#64748b;margin-bottom:12px">
-          ${pts.length} pacientes · ${hasPending.length} con pendientes
+          ${pts.length} pacientes · ${hasPending.length} con pendientes activos
         </div>
         <div style="display:flex;flex-direction:column;gap:10px">`;
       pts.forEach(p => {
         const k = pid(p);
         const nd = migrateNote(noteData[k] || defaultData());
         const ec = ESP_COLORS[p.esp] || "#334155";
-        const pendientes = (nd.pendientes || "").trim();
-        const mips = (nd.checklist && nd.checklist.pendientes_mips || "").trim();
-        const r1 = (nd.checklist && nd.checklist.pendientes_r1 || "").trim();
-        const hasAny = pendientes || mips || r1;
-        html += `<div style="border:1px solid ${hasAny ? ec : "#e2e8f0"};border-radius:10px;overflow:hidden;background:#fff;${!hasAny ? "opacity:0.55" : ""}">
+        const items = nd.pendientes_items || [];
+        const pending = items.filter(it => !it.done);
+        const completed = items.filter(it => it.done);
+        const hasAny = items.length > 0;
+        html += `<div style="border:1px solid ${pending.length ? ec : "#e2e8f0"};border-radius:10px;overflow:hidden;background:#fff;${!hasAny ? "opacity:0.55" : ""}">
           <div style="background:linear-gradient(90deg,${ec} 0%,${ec}cc 100%);color:#fff;padding:8px 14px;display:flex;align-items:center;gap:10px">
             <span style="font-weight:700;font-size:14px">${esc(p.cama)}</span>
             <span style="font-weight:600;font-size:13px;flex:1">${esc(p.nombre)}</span>
             <span style="font-size:11px;opacity:.85">${esc(p.esp)} · ${esc(p.adscrito || "")}</span>
+            ${pending.length ? `<span style="background:#dc2626;color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700">${pending.length}</span>` : ''}
           </div>
-          <div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px">`;
-        if (pendientes) {
-          html += `<div>
-            <div style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">⚠️ Pendientes / Plan</div>
-            <div style="font-size:13px;color:#1e293b;white-space:pre-wrap;background:#fefce8;border:1px solid #fde047;border-radius:6px;padding:6px 10px">${esc(pendientes)}</div>
-          </div>`;
+          <div style="padding:10px 14px;display:flex;flex-direction:column;gap:4px">`;
+        if (pending.length) {
+          pending.forEach(function(item) {
+            html += `<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:6px;background:#fefce8;border:1px solid #fde047">
+              <span style="font-size:13px;flex:1;color:#1e293b">${esc(item.texto || '(sin texto)')}</span>
+              ${item.quien ? `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:#e0f2fe;color:#0369a1">${esc(item.quien)}</span>` : ''}
+            </div>`;
+          });
         }
-        if (mips) {
-          html += `<div>
-            <div style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">📋 Pendientes Rotantes</div>
-            <div style="font-size:13px;color:#1e293b;white-space:pre-wrap;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:6px;padding:6px 10px">${esc(mips)}</div>
-          </div>`;
-        }
-        if (r1) {
-          html += `<div>
-            <div style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">📋 Pendientes R1</div>
-            <div style="font-size:13px;color:#1e293b;white-space:pre-wrap;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:6px 10px">${esc(r1)}</div>
-          </div>`;
+        if (completed.length) {
+          html += `<div style="font-size:11px;color:#6b7280;margin-top:2px">✅ ${completed.length} completado(s)</div>`;
         }
         if (!hasAny) {
           html += `<div style="font-size:12px;color:#94a3b8;font-style:italic">Sin pendientes registrados</div>`;
@@ -13594,6 +13832,24 @@ ${nd.pendientes.trim()}` : "⚠️ Plan: (sin registrar)",
       <input type="file" id="bulk-pdf-input" accept="application/pdf" multiple style="display:none" onchange="handleBulkLabsFiles(this.files)"/>
       <div id="bulk-labs-progress" style="margin-top:14px;display:none"></div>
       <div id="bulk-labs-results" style="margin-top:10px"></div>
+    </div>
+  </div>
+  <!-- BULK LABS TEXT MODAL -->
+  <div class="modal-bg" id="bulk-labs-text-modal" style="display:none" onclick="if(event.target===this)closeBulkLabsTextModal()">
+    <div class="modal-box" style="max-width:750px;max-height:90vh;overflow-y:auto">
+      <div class="modal-header">
+        <div class="modal-title">📝 Labs Masivo — Texto</div>
+        <button class="modal-close" onclick="closeBulkLabsTextModal()">✕</button>
+      </div>
+      <p style="font-size:12px;color:#64748b;margin:0 0 8px">Pega aquí el texto con los resultados de laboratorio de uno o varios pacientes. La IA identificará a cada paciente y llenará sus labs automáticamente.</p>
+      <p style="font-size:11px;color:#94a3b8;margin:0 0 12px">Puedes copiar y pegar directamente desde el sistema del hospital, WinLab, o cualquier fuente de texto.</p>
+      <textarea id="bulk-labs-text-input" style="width:100%;min-height:250px;border:2px solid #c4b5fd;border-radius:10px;padding:12px;font-size:13px;font-family:var(--font);resize:vertical;background:#faf5ff" placeholder="Pega aquí los resultados de laboratorio...&#10;&#10;Ejemplo:&#10;GARCIA LOPEZ JUAN&#10;Hemoglobina: 12.5&#10;Leucocitos: 8,500&#10;Plaquetas: 250,000&#10;Creatinina: 0.9&#10;Na: 140&#10;K: 4.2&#10;..."></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button onclick="processBulkLabsText()" style="flex:1;background:#7c3aed;color:#fff;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">🧠 Procesar con IA</button>
+        <button onclick="closeBulkLabsTextModal()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:10px 20px;border-radius:8px;font-size:13px;cursor:pointer;font-family:var(--font)">Cancelar</button>
+      </div>
+      <div id="bulk-text-progress" style="margin-top:14px;display:none"></div>
+      <div id="bulk-text-results" style="margin-top:10px"></div>
     </div>
   </div>
   <!-- Input de archivo global para PDF/Foto de labs (único, persistente, compatible Safari/iOS) -->
